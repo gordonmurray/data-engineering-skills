@@ -4,15 +4,18 @@ You are an expert in Lance, a modern columnar data format optimized for ML and A
 
 ## Version Information
 
-**Current Stable Version:** v0.38.2 (October 2025)
-- 344+ releases available
-- Preview versions guaranteed available for 6+ months
-- Latest features: Lance v2 format with enhanced performance
+**Lance SDK:** v1.0.0+ (graduated December 2025, now follows SemVer)
+- **pylance** (Python): v2.0.1 (February 2026) - Python wrapper for Lance columnar format
+- **LanceDB** (Python): v0.29.2 (February 2026) - Embedded retrieval library
+- Lance File Format 2.1 is now stable with cascading encoding and compression
+- Lance v2.0.0 manifest is the new default
 
 **Language Support:**
-- **Python** (`pylance` package) - Primary bindings via PyO3
+- **Python** (`pylance` package, requires Python >=3.9) - Primary bindings via PyO3
 - **Rust** - Core implementation (80.8% of codebase)
-- **Java** - JNI bindings
+- **Java** - JNI bindings with schema metadata API
+
+**Note:** macOS x86 support has been deprecated as of LanceDB v0.26.0.
 
 ## Core Concepts
 
@@ -22,9 +25,11 @@ Lance is a modern columnar data format that:
 - Delivers **100x faster random access** than Parquet without sacrificing scan performance
 - Supports **zero-copy automatic versioning** for data evolution
 - Provides **native vector search** with sub-millisecond latency (IVF-PQ, IVF-SQ, HNSW algorithms)
+- Supports **multivector search** for late interaction models (ColBERT, ColPaLi)
 - Handles **multimodal data**: images, videos, 3D point clouds, audio, text, embeddings
 - Implements **row-level ACID transactions** with conflict resolution
-- Supports **full-text search** with inverted indices and n-gram indexing
+- Supports **full-text search** with inverted indices, n-gram indexing, fuzzy search, and boosting
+- Supports **geospatial data** via GeoArrow types and RTree spatial indices
 
 ### Data Format Architecture
 
@@ -35,10 +40,13 @@ Lance is a modern columnar data format that:
 - Default configuration: 1M rows per file, 8 MiB disk page size
 
 **Indices:**
-- **Scalar**: BTree, Bitmap, Bloom Filter
-- **Vector**: IVF-PQ, IVF-SQ, HNSW
+- **Scalar**: BTree, Bitmap, Bloom Filter, Distributed Range BTree
+- **Vector**: IVF-PQ, IVF-SQ, HNSW (with GPU-accelerated IVF-PQ indexing, 10x faster builds)
+- **Multivector**: Late interaction indices for ColBERT/ColPaLi models (cosine metric)
 - **System**: Fragment Reuse, MemWAL
-- **Full-text**: Inverted indices, n-gram tokenization
+- **Full-text**: Inverted indices, n-gram tokenization, configurable tokenizers and stopword lists
+- **Geospatial**: RTree index for spatial queries (GeoArrow types)
+- **Binary**: Hamming distance for binary vector similarity search
 
 ### Key Performance Characteristics
 
@@ -68,14 +76,21 @@ import lancedb
 # Local database
 db = lancedb.connect("~/.lancedb")
 
-# Cloud connection (LanceDB Cloud launched June 2025)
+# Cloud connection (LanceDB Cloud, launched June 2025)
 db = lancedb.connect("db://my_database", api_key="ldb_...")
+
+# Async connection
+db = await lancedb.connect_async("~/.lancedb")
 
 # Object storage (S3, GCS, Azure)
 db = lancedb.connect(
     "s3://my-bucket/lancedb",
     storage_options={"aws_access_key_id": "***", "aws_secret_access_key": "***"}
 )
+
+# Session-based cache control (for large datasets / enterprise deployments)
+session = lancedb.Session(cache_size=512 * 1024 * 1024)  # 512 MiB
+db = lancedb.connect("~/.lancedb", session=session)
 ```
 
 ## Common Operations
@@ -132,8 +147,17 @@ for batch in table.to_arrow():
 new_data = [{"vector": [7.1, 8.1], "item": "baz", "price": 30.0}]
 table.add(new_data)
 
-# Merge/upsert operations
-table.merge_insert(data).when_matched_update_all().execute()
+# Merge/upsert operations (use scalar indexes on key columns for performance)
+table.merge_insert("item")  # specify the key column
+    .when_matched_update_all()
+    .when_not_matched_insert_all()
+    .execute(new_data)
+
+# Merge with delete of unmatched source rows
+table.merge_insert("item")
+    .when_matched_update_all()
+    .when_not_matched_by_source_delete()
+    .execute(new_data)
 
 # Update specific rows
 table.update(where="price < 15", values={"price": "price * 1.1"})
@@ -162,6 +186,13 @@ results = (
     .to_pandas()
 )
 
+# Vector search with distance range filtering
+results = (
+    table.search(query_vector)
+    .distance_range(0.1, 0.5)  # lower_bound (inclusive), upper_bound (exclusive)
+    .to_pandas()
+)
+
 # Full-text search (requires FTS index)
 results = (
     table.search("query text", query_type="fts")
@@ -169,10 +200,19 @@ results = (
     .to_pandas()
 )
 
-# Hybrid search (vector + full-text)
+# Hybrid search (vector + full-text with reranking)
 results = (
-    table.search(query_vector)
-    .where("fts_match(text_column, 'search terms')")
+    table.search("flying cars", query_type="hybrid")
+    .where("date > '2026-01-01'")
+    .reranker("cross_encoder_tuned")
+    .select(["id"])
+    .limit(10)
+    .to_pandas()
+)
+
+# Handle bad vectors gracefully
+results = (
+    table.search(query_vector, on_bad_vectors="fill")  # "error" (default), "fill", or "null"
     .limit(10)
     .to_pandas()
 )
@@ -182,8 +222,9 @@ results = (
 
 ```python
 # Create vector index (IVF_PQ for large datasets)
+# num_partitions defaults are now auto-determined by Lance if omitted
 table.create_index(
-    metric="cosine",  # or "L2", "dot"
+    metric="cosine",  # or "L2", "dot", "hamming" (binary vectors)
     num_partitions=256,
     num_sub_vectors=16
 )
@@ -191,8 +232,14 @@ table.create_index(
 # Create scalar index (BTree)
 table.create_scalar_index("price", index_type="BTREE")
 
-# Create full-text search index
+# Create full-text search index with configurable options
 table.create_fts_index("text_column", tokenizer="en")
+
+# Create multivector index (for ColBERT/ColPaLi models, cosine only)
+table.create_index(
+    vector_column_name="multivector_col",
+    metric="cosine"
+)
 ```
 
 ### Versioning
@@ -328,8 +375,8 @@ table.add(df)
 # Natural clustering (insertion order)
 # Tables with timestamps or incrementing IDs are already well-clustered
 data_with_timestamp = [
-    {"id": 1, "timestamp": "2025-01-01", "value": 10},
-    {"id": 2, "timestamp": "2025-01-02", "value": 20},
+    {"id": 1, "timestamp": "2026-01-01", "value": 10},
+    {"id": 2, "timestamp": "2026-01-02", "value": 20},
     # ... continues chronologically
 ]
 
@@ -368,7 +415,7 @@ Lance v0.8.21+ uses column statistics for 30x faster scans (94% IO reduction in 
 # Statistics enable page pruning when filtering
 
 # Efficient query (uses statistics)
-results = table.search(vector).where("timestamp >= '2025-01-01'").to_pandas()
+results = table.search(vector).where("timestamp >= '2026-01-01'").to_pandas()
 
 # Stats work best on clustered columns
 # - Timestamps (naturally ordered)
@@ -481,23 +528,60 @@ table.search(vector).where("value IN (1, 2, 3, 4, 5)")
 
 ## Version-Specific Features
 
+### Lance SDK v1.0.0+ (December 2025)
+- Graduated to stable SemVer releases
+- Breaking changes only on major version bumps (2.0, 3.0, etc.)
+- Breaking changes never invalidate existing Lance data, only SDK-level APIs
+
+### Lance File Format 2.1 (Stable, October 2025)
+- Cascading encoding and compression without sacrificing random access
+- Documented spec with backwards compatibility commitment
+- v2 manifest is now the default
+
 ### Lance v0.8.21+ (Statistics & Page Pruning)
 - Column statistics for min/max values
 - Statistics-based page pruning
 - 30x faster scans with predicates
 - 94% IO reduction in optimal scenarios
 
-### Lance v2 (Modern Container Format)
-- Enhanced structural encodings
-- Improved compression
-- Better nested field support
-- Advanced metadata management
+### LanceDB v0.26+ (December 2025 onwards)
+- Lance dependency upgraded to v2.0.0
+- `num_partitions` defaults auto-determined by Lance
+- Namespace credentials vending and async namespace connection
+- `to_pydantic` support in async API
+- IVF-SQ index support and HNSW aliases
+- `index_cache_size` on `open_table` deprecated in favor of session-level cache via `lancedb.Session`
+- macOS x86 support deprecated
 
-### LanceDB Cloud (June 2025)
-- Managed cloud service
-- API-based access
-- Automatic scaling
-- Integrated with major LLM frameworks
+### LanceDB Cloud (June 2025 launch, ongoing updates)
+- Managed cloud service with $30M Series A funding
+- Multimodal Lakehouse Suite: Search, EDA, Feature Engineering, Training
+- Self-serve onboarding with workflow-based UI
+- Visual index creation (vector, scalar, FTS) in the UI
+- Apache Arrow Flight-SQL protocol for SQL queries on billions of rows
+- GCP autoscaling support
+- Improved load balancing with tenant isolation
+- Session-based cache control for Python and TypeScript
+- Streaming ingestion with automatic index optimization
+
+### Recent Search Enhancements
+- **Multivector search**: Late interaction models (ColBERT, ColPaLi) with per-document vector lists
+- **Distance range filtering**: `distance_range()` for bounded similarity search
+- **Fuzzy search & boosting**: Typo-tolerant FTS with relevance tuning
+- **Hybrid search with reranking**: Combined vector + FTS with cross-encoder rerankers
+- **Hamming distance**: Binary vector similarity search
+- **GPU-accelerated IVF-PQ**: 10x faster index builds
+- **HNSW-accelerated partition computation**: Up to 50% less indexing time
+- **500x faster range queries**: 100us on 1M int32 values (from 50ms)
+
+### Ecosystem Additions
+- **lance-graph**: Graph module contributed by Uber (Cypher queries, COLLECT aggregation, WITH clause)
+- **GeoArrow GEO types**: Native geospatial data type support
+- **RTree geospatial index**: Spatial index specification
+- **VoyageAI v4**: First-class embedding support including multimodal models
+- **lance-data-viewer**: Local web UI for browsing Lance tables
+- **lance-namespace**: Open spec for standardized access to Lance table collections
+- **Spark integration**: Via lance-spark for distributed workloads
 
 ## Common Patterns
 
@@ -560,6 +644,33 @@ results = (
 )
 ```
 
+### Multivector Search (ColBERT / Late Interaction)
+
+```python
+import pyarrow as pa
+
+# Define schema with nested vector list for late interaction models
+schema = pa.schema([
+    pa.field("id", pa.int64()),
+    pa.field("text", pa.utf8()),
+    pa.field("multivector", pa.list_(pa.list_(pa.float32(), 256)))  # variable-length list of 256-dim vectors
+])
+
+# Create table and index (cosine metric only for multivector)
+table = db.create_table("colbert_docs", schema=schema)
+table.add(documents_with_multivectors)
+table.create_index(vector_column_name="multivector", metric="cosine")
+
+# Query with a single vector
+results = table.search([query_vector], vector_column_name="multivector").limit(10).to_arrow()
+
+# Query with multiple vectors (late interaction scoring)
+query_vectors = [[0.1] * 256, [0.2] * 256, [0.3] * 256]
+results = table.search(query_vectors, vector_column_name="multivector").limit(10).to_arrow()
+```
+
+**Note:** Multivector search uses late interaction scoring - it finds the best matching pairs between query and document vectors for more nuanced relevance. Only cosine metric is supported; vector types can be float16, float32, or float64.
+
 ### Time-Series Data with Versioning
 
 ```python
@@ -602,18 +713,23 @@ diff = set(v2_data["timestamp"]) - set(v1_data["timestamp"])
 
 ## Resources
 
-- **Documentation**: https://lancedb.github.io/lance/
-- **GitHub**: https://github.com/lancedb/lance
-- **LanceDB Docs**: https://lancedb.com/documentation/
-- **Python API**: https://lancedb.github.io/lancedb/python/python/
-- **Examples**: https://lancedb.github.io/lancedb/examples/examples_python/
-- **Blog**: https://blog.lancedb.com/
+- **Lance Format Documentation**: https://lancedb.github.io/lance/
+- **Lance Format GitHub**: https://github.com/lance-format/lance
+- **Lance Website**: https://lance.org/
+- **LanceDB Docs**: https://docs.lancedb.com/
+- **LanceDB GitHub**: https://github.com/lancedb/lancedb
+- **Python API Reference**: https://lancedb.github.io/lancedb/python/python/
+- **LanceDB Changelog**: https://docs.lancedb.com/changelog/changelog
+- **Blog**: https://lancedb.com/blog/
+- **lance-data-viewer**: https://github.com/lance-format/lance-data-viewer
+- **lance-namespace**: https://github.com/lance-format/lance-namespace
+- **VLDB 2025 Paper**: Research paper on Lance internals published at VLDB 2025
 
 ## Quick Reference
 
 ### Install
 ```bash
-pip install pylance lancedb
+pip install pylance lancedb  # pylance >=2.0.1, lancedb >=0.29.2
 ```
 
 ### Basic Operations
@@ -645,20 +761,25 @@ duckdb.query("SELECT * FROM lance_dataset WHERE col > 10")
 
 ### Performance Checklist
 - ✅ Use batch inserts (not single rows)
-- ✅ Run compaction regularly
-- ✅ Create indices for frequent queries
+- ✅ Run compaction regularly (background compaction now available)
+- ✅ Create indices for frequent queries (scalar indexes speed up merge_insert)
 - ✅ Use column selection in queries
 - ✅ Leverage data clustering
 - ✅ Apply filters early in query chain
 - ✅ Stream large result sets
+- ✅ Use session-level cache control for large datasets
+- ✅ Consider GPU-accelerated index builds for large vector datasets
 
 ---
 
 When helping users with Lance:
-1. Always check version compatibility (latest stable: v0.38.2)
+1. Always check version compatibility (Lance SDK 1.0.0+, pylance 2.0.1, LanceDB 0.29.2)
 2. Recommend batch operations over single-row operations
-3. Suggest appropriate indices based on query patterns
+3. Suggest appropriate indices based on query patterns (vector, scalar, FTS, multivector, geospatial)
 4. Optimize for data clustering when possible
-5. Use DuckDB integration for complex SQL analytics
+5. Use DuckDB integration for complex SQL analytics (now with Arrow Flight-SQL)
 6. Leverage Arrow for zero-copy interoperability
 7. Apply performance best practices from v0.8.21+ (statistics, page pruning)
+8. Use session-level cache configuration instead of deprecated `index_cache_size`
+9. Consider multivector search for ColBERT/ColPaLi late interaction models
+10. Use `distance_range()` when bounded similarity is needed instead of top-k
