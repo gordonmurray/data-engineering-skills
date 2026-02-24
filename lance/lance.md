@@ -463,23 +463,100 @@ results = (
 
 ### 6. Cloud Storage Optimization
 
-```python
-# Lance optimized for cloud object storage
+#### The Serial Dependency Chain (Critical for Latency)
 
-# Use regional endpoints for best performance
+Point lookups on remote storage are bounded by **sequential round-trips**, not parallelism.
+Each Lance query must complete these steps in order — each depends on the previous result:
+
+```
+Step 1: Read manifest        →  find which fragments/indexes exist
+Step 2: Read index (BTREE)   →  locate the target data page
+Step 3: Read data page       →  return matching rows
+```
+
+On S3 Standard (50-150 ms/GET), a single point lookup takes **150-450 ms**.
+On S3 Express One Zone (5-10 ms/GET), the same lookup takes **15-30 ms**.
+Lance uses 64 concurrent I/O threads for cloud (`LANCE_IO_THREADS` env var), which helps
+**scan throughput** across many fragments but cannot parallelize this serial chain.
+
+**Key takeaway:** For point-lookup workloads, minimize per-GET latency (use Express One
+Zone) and minimize fragment count (aggressive compaction) to reduce the number of
+sequential steps.
+
+#### S3 Configuration
+
+```python
+# Standard S3
 db = lancedb.connect(
     "s3://my-bucket/lancedb",
     storage_options={
         "aws_access_key_id": "***",
         "aws_secret_access_key": "***",
-        "region": "us-west-2",  # Match bucket region
+        "region": "us-west-2",
         "aws_endpoint_url": "https://s3.us-west-2.amazonaws.com"
     }
 )
 
+# S3 Express One Zone (native support, auto-detects --x-s3 suffix)
+# Best latency option for remote storage: 5-10 ms per GET
+db = lancedb.connect("s3://my-bucket--usw2-az1--x-s3/lancedb")
+
+# Concurrent writes from multiple replicas (requires DynamoDB table
+# with hash key "base_uri" and range key "version")
+db = lancedb.connect("s3+ddb://my-bucket--usw2-az1--x-s3/lancedb?ddbTableName=lance-locks")
+
 # Batch operations for cloud storage
 table.add(large_batch)  # Better than many small adds
 ```
+
+#### I/O Thread Tuning
+
+```bash
+# Default: 64 threads for cloud, 8 for local
+# Increase if network bandwidth is not saturated (e.g., large scans)
+export LANCE_IO_THREADS=128
+
+# Note: more threads help scan throughput, NOT point-lookup latency
+# Point lookups are bounded by the serial manifest→index→data chain
+```
+
+#### Compaction Is Critical on Remote Storage
+
+Each fragment adds a potential sequential GET to every query. On local disk the overhead
+is microseconds; on S3 it's 5-150 ms per extra fragment read.
+
+```python
+# Compact aggressively for remote storage
+table.compact_files(target_rows_per_fragment=1_000_000)
+
+# For small tables with frequent single-row writes, compact on every write
+# or lower the threshold well below the local-disk default
+```
+
+#### Object Store Compatibility
+
+Lance works with any S3-compatible store via the `object_store` crate, but performance
+varies dramatically based on each store's small-random-read characteristics:
+
+| Store | Small GET p90 | Suitability for Lance |
+|-------|--------------|----------------------|
+| S3 Express One Zone | ~10 ms | Best remote option |
+| S3 Standard | ~42 ms | Acceptable for scans, slow for point lookups |
+| Cloudflare R2 | ~199 ms | Poor — 5x slower than S3 Standard for small reads |
+| MinIO (local) | <5 ms | Good for self-hosted / dev |
+
+R2 is optimized for large-file CDN egress, not the many small byte-range reads Lance
+generates. It also does not support multipart HTTP range requests.
+
+#### Known Cloud Storage Issues
+
+- **S3 memory leak (GitHub #2468):** Buffering behavior can exceed 16 GB RAM on
+  2 GB datasets. Workaround: FUSE mount (rclone/s3fs) or batch processing.
+- **No native disk cache yet (GitHub #2626):** Feature request for transparent
+  local SSD caching of remote data. Not shipped as of February 2026. Would
+  eliminate the latency penalty for warm reads.
+- **Manifest lookup is O(1) (GitHub #2790):** Fixed — `lance.dataset()` takes
+  ~125 ms on S3 regardless of version count (previously grew linearly).
 
 ### 7. Memory Management
 
@@ -699,6 +776,13 @@ diff = set(v2_data["timestamp"]) - set(v1_data["timestamp"])
 - Create appropriate indices (scalar/vector)
 - Use column selection (`.select()`) to reduce data scanned
 - Run `table.compact_files()` if many small fragments exist
+
+**Slow Queries on S3 / Remote Storage:**
+- Point lookups are bounded by serial round-trips (manifest→index→data), not parallelism
+- Use S3 Express One Zone (5-10 ms/GET) instead of Standard (50-150 ms/GET)
+- Compact aggressively — each extra fragment adds a sequential remote GET
+- Increasing `LANCE_IO_THREADS` helps scan throughput but not point-lookup latency
+- Consider `s3+ddb://` URI scheme if running multiple writer replicas
 
 **High Memory Usage:**
 - Stream results: `for batch in table.to_arrow(): ...`
