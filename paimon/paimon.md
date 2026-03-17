@@ -4,17 +4,29 @@ You are an expert in Apache Paimon, a streaming lake format designed for real-ti
 
 ## Version Information
 
-**Current Stable:** Paimon 1.2.0 (October 2025)
+**Current Stable:** Paimon 1.3.1 (November 2025)
+**Python SDK:** PyPaimon 1.3.1 (pure Python, no JDK required)
 **Recommended Flink:** Flink 1.19+, Flink 2.0+ (latest features)
 **Recommended Spark:** Spark 3.4.3
 
-**Key 2025 Developments:**
+**Key 2025/2026 Developments:**
 - Flink 2.0 integration with native Materialized Tables
 - Deletion vectors for primary key tables
-- Improved lookup join performance
+- Improved lookup join performance with in-memory cache option
 - Nested projection pushdown
-- Flink CDC 3.5 with Paimon 1.2.0
+- Flink CDC 3.5 with Paimon 1.2.0+
 - Enhanced Spark query optimization (37% improvement on TpcDS)
+- Iceberg compatibility: expose Paimon tables as Iceberg via Hadoop, Hive, or REST catalog
+- Data Evolution Mode for append tables (partial column updates without full file rewrites)
+- PyPaimon rewritten as pure Python (no JDK dependency)
+- REST Catalog with row-level and column-level auth interfaces
+- Blob storage for multimodal data (images, audio, video) via Data Evolution mode
+
+**Paimon 2.0 Roadmap (announced):**
+- Unified storage for structured, multimodal, and vector data
+- Vector Store and Global Vector Index
+- Global Index framework and Global Inverted Index
+- Enhanced Python SDK with Ray support
 
 ## Core Concepts
 
@@ -546,7 +558,9 @@ LEFT JOIN users FOR SYSTEM_TIME AS OF o.order_time AS u
   ON o.user_id = u.user_id;
 ```
 
-**Performance Tip (Flink 2.0):** Lookup join performance significantly improved in 2025.
+**Performance Tips:**
+- Flink 2.0 significantly improved lookup join performance
+- **In-memory cache** (new in 1.2+): Set `'lookup.cache' = 'memory'` instead of the default RocksDB cache for faster lookups when dimension tables fit in memory
 
 ### Compaction in Streaming Mode
 
@@ -821,6 +835,210 @@ uri: jdbc:mysql://mysql:3306/paimon_catalog
 jdbc.user: paimon
 jdbc.password: password
 ```
+
+## Iceberg Compatibility
+
+Paimon can expose tables as Iceberg-compatible, allowing engines like Trino, Presto, Doris, and StarRocks to read Paimon data through Iceberg readers — no Paimon-specific connector needed.
+
+### How It Works
+
+When enabled, Paimon generates Iceberg-compatible metadata alongside its own metadata on every commit. Downstream Iceberg readers see a standard Iceberg table.
+
+### Storage Modes
+
+**Hadoop Catalog (recommended for SQL users):**
+
+```sql
+CREATE TABLE users (
+  user_id BIGINT,
+  name STRING,
+  PRIMARY KEY (user_id) NOT ENFORCED
+) WITH (
+  'bucket' = '4',
+  'metadata.iceberg.storage' = 'hadoop-catalog'
+);
+```
+
+**Hive Catalog:**
+
+```sql
+CREATE TABLE users (...) WITH (
+  'metadata.iceberg.storage' = 'hive-catalog'
+);
+```
+
+**REST Catalog (for Iceberg REST catalog services like Polaris):**
+
+```sql
+CREATE TABLE users (...) WITH (
+  'metadata.iceberg.storage' = 'rest-catalog',
+  'metadata.iceberg.rest.uri' = 'http://polaris:8181/api/v1'
+);
+```
+
+**Table Location (for Java API users):**
+
+```sql
+CREATE TABLE users (...) WITH (
+  'metadata.iceberg.storage' = 'table-location'
+);
+```
+
+### Iceberg-Compatible Deletion Vectors
+
+```sql
+CREATE TABLE users (...) WITH (
+  'delete-vectors.bitmap64' = 'true',  -- Iceberg-compatible deletion vectors
+  'metadata.iceberg.storage' = 'hadoop-catalog'
+);
+```
+
+### Tag Synchronization
+
+When a Paimon Tag is created or deleted, the corresponding Iceberg metadata is also updated. This keeps Paimon and Iceberg views consistent.
+
+### Metadata Compaction
+
+```sql
+CREATE TABLE users (...) WITH (
+  'metadata.iceberg.compaction.min.file-num' = '10',
+  'metadata.iceberg.compaction.max.file-num' = '50'
+);
+```
+
+### Important Notes
+
+- Iceberg compatibility must be set at `CREATE TABLE` time — `ALTER TABLE` cannot enable it after the fact
+- Requires `paimon-iceberg` jar and JDK 11+
+- Read-only from the Iceberg side: writes must go through Paimon
+
+## Data Evolution Mode
+
+Data Evolution Mode is a feature for **append tables** that allows partial column updates without rewriting entire data files. New column data is written to separate files and merged during reads.
+
+### Why This Matters
+
+- **Schema changes without file rewrites**: Adding columns to large append tables no longer means rewriting terabytes of data
+- **Efficient partial updates**: Update a subset of columns via Spark `MERGE INTO` — only changed columns are written
+- **Unchanged read performance**: The merge during reads is highly optimized
+
+### Enabling Data Evolution
+
+```sql
+-- Spark SQL
+CREATE TABLE target_table (id INT, b INT, c INT)
+TBLPROPERTIES (
+  'row-tracking.enabled' = 'true',
+  'data-evolution.enabled' = 'true'
+);
+```
+
+### Partial Column Update
+
+```sql
+-- Only updates columns 'b' and 'c', leaving other columns untouched
+-- Does NOT rewrite original data files
+MERGE INTO target_table t
+USING source_table s
+ON t.id = s.id
+WHEN MATCHED THEN UPDATE SET t.b = s.b, t.c = s.c;
+```
+
+### Blob Storage for Multimodal Data
+
+Leveraging Data Evolution mode, Paimon supports **blob columns** for storing large binary data (images, audio, video). Blob columns are split out and managed separately with decoupled compaction, making Paimon usable for AI and multimodal workloads.
+
+### Current Limitations
+
+- Only Spark's `MERGE INTO` is supported for partial column updates (Flink support planned)
+- Requires `row-tracking.enabled = true`
+
+## PyPaimon (Python SDK)
+
+PyPaimon is a **pure Python** implementation for reading and writing Paimon tables — no JDK installation required.
+
+### Installation
+
+```bash
+pip install pypaimon
+```
+
+### Catalog and Table Operations
+
+```python
+from pypaimon import Catalog
+
+# Create filesystem catalog
+catalog = Catalog.create({'warehouse': 's3://bucket/warehouse'})
+
+# Get table
+table = catalog.get_table('my_db.users')
+```
+
+### Reading Data
+
+```python
+# Read as PyArrow Table
+read_builder = table.new_read_builder()
+splits = read_builder.new_scan().plan().splits()
+reader = read_builder.new_read()
+arrow_table = reader.to_arrow(splits)
+
+# Convert to Pandas
+df = arrow_table.to_pandas()
+```
+
+### Incremental Reads
+
+```python
+# Read records between snapshots
+from pypaimon import SnapshotManager
+
+snapshot_mgr = SnapshotManager(table)
+# Read incrementally between timestamps
+incremental_splits = read_builder \
+    .with_incremental_between(start_timestamp, end_timestamp) \
+    .new_scan().plan().splits()
+```
+
+### Writing Data
+
+```python
+# Batch write with two-phase commit
+write_builder = table.new_batch_write_builder()
+writer = write_builder.new_write()
+committer = write_builder.new_commit()
+
+writer.write_arrow(arrow_table)
+committables = writer.prepare_commit()
+committer.commit(committables)
+
+writer.close()
+committer.close()
+```
+
+### Partition Overwrite
+
+```python
+# Overwrite specific partitions
+write_builder = table.new_batch_write_builder() \
+    .overwrite({'dt': '2025-10-19'})
+```
+
+### Data Evolution Support
+
+```python
+# Update columns in data evolution tables
+table_update = table.new_table_update()
+table_update.update_by_arrow_with_row_id(arrow_table)
+```
+
+### Supported Catalogs
+
+- Filesystem catalog (default)
+- REST catalog
+- JDBC catalog (via py4j fallback)
+- Hive Metastore (via py4j fallback)
 
 ## Performance & Maintenance
 
@@ -1322,7 +1540,11 @@ When helping users with Apache Paimon:
 4. **Leverage CDC integration** - Flink CDC 3.x has excellent Paimon support
 5. **Choose right table type** - Primary key vs append-only based on use case
 6. **Monitor compaction** - File count and level distribution matter
-7. **Use lookup joins** - Efficient dimensional enrichment pattern
+7. **Use lookup joins** - Efficient dimensional enrichment, with in-memory cache for smaller tables
 8. **Partition wisely** - Time-based partitioning for most use cases
 9. **Tag important snapshots** - Prevent expiration of critical versions
 10. **Flink 2.0 features** - Materialized tables, improved lookup joins, nested projection pushdown
+11. **Iceberg compatibility** - Expose Paimon tables to Iceberg readers for broader engine support
+12. **Data Evolution Mode** - Partial column updates on append tables without costly file rewrites
+13. **PyPaimon for Python users** - Pure Python SDK, no JDK needed, supports Arrow and Pandas
+14. **Paimon 2.0 is coming** - Vector store, blob storage, global indexes for AI/multimodal workloads
