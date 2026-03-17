@@ -4,11 +4,12 @@ You are an expert in Lance, a modern columnar data format optimized for ML and A
 
 ## Version Information
 
-**Lance SDK:** v1.0.0+ (graduated December 2025, now follows SemVer)
-- **pylance** (Python): v2.0.1 (February 2026) - Python wrapper for Lance columnar format
-- **LanceDB** (Python): v0.29.2 (February 2026) - Embedded retrieval library
-- Lance File Format 2.1 is now stable with cascading encoding and compression
+**Lance SDK:** v3.0.0 (March 2026, SemVer since v1.0.0 graduation in December 2025)
+- **pylance** (Python): v3.0.0 (March 2026) - Python wrapper for Lance columnar format
+- **LanceDB** (Python): v0.30.0 (March 2026) - Embedded retrieval library
+- Lance File Format 2.1 stable; v2.2 in development (faster scans via structural decode batching)
 - Lance v2.0.0 manifest is the new default
+- DataFusion upgraded to 52.1.0
 
 **Language Support:**
 - **Python** (`pylance` package, requires Python >=3.9) - Primary bindings via PyO3
@@ -76,13 +77,16 @@ import lancedb
 # Local database
 db = lancedb.connect("~/.lancedb")
 
+# List tables (replaces deprecated table_names())
+tables = db.list_tables()  # supports pagination
+
 # Cloud connection (LanceDB Cloud, launched June 2025)
 db = lancedb.connect("db://my_database", api_key="ldb_...")
 
 # Async connection
 db = await lancedb.connect_async("~/.lancedb")
 
-# Object storage (S3, GCS, Azure)
+# Object storage (S3, GCS, Azure, Tencent COS)
 db = lancedb.connect(
     "s3://my-bucket/lancedb",
     storage_options={"aws_access_key_id": "***", "aws_secret_access_key": "***"}
@@ -159,6 +163,11 @@ table.merge_insert("item")
     .when_not_matched_by_source_delete()
     .execute(new_data)
 
+# Merge with delete on match (remove matched rows instead of updating)
+table.merge_insert("item")
+    .when_matched_delete()
+    .execute(new_data)
+
 # Update specific rows
 table.update(where="price < 15", values={"price": "price * 1.1"})
 
@@ -200,6 +209,19 @@ results = (
     .to_pandas()
 )
 
+# Boolean FTS: combine conditions with and/or (Python: also &/|)
+from lancedb.query import MatchQuery
+combined = MatchQuery("machine learning", "text") & MatchQuery("neural", "text")  # AND
+either = MatchQuery("lance", "text") | MatchQuery("arrow", "text")               # OR
+
+# Prefix search (autocomplete-style): matches "mach" → "machine", "machinery"
+# Phrase matching with slop: allows terms to be near but not adjacent
+results = (
+    table.search("mach*", query_type="fts")  # prefix search
+    .limit(10)
+    .to_pandas()
+)
+
 # Hybrid search (vector + full-text with reranking)
 results = (
     table.search("flying cars", query_type="hybrid")
@@ -216,6 +238,21 @@ results = (
     .limit(10)
     .to_pandas()
 )
+
+# Fast search: skip unindexed data for lower latency (may miss recent inserts)
+results = (
+    table.search(query_vector, fast_search=True)
+    .limit(10)
+    .to_pandas()
+)
+
+# Query debugging: inspect execution plan
+plan = table.search(query_vector).where("price > 15").explain_plan()
+metrics = table.search(query_vector).where("price > 15").analyze_plan()
+
+# Prewarm indices for faster cold-start queries
+table.prewarm_index()   # load vector/scalar index into cache
+table.prewarm_data()    # preload data pages (remote tables)
 ```
 
 ### Indexing
@@ -396,11 +433,11 @@ table.compact_files()  # Reorganize fragments for better clustering
 for row in large_dataset:
     table.add([row])  # ❌ Creates many small fragments
 
-# PREFER: Batch inserts
+# PREFER: Batch inserts (LanceDB v0.30.0+ uses parallel inserts for local tables)
 batch_size = 1000
 for i in range(0, len(large_dataset), batch_size):
     batch = large_dataset[i:i+batch_size]
-    table.add(batch)  # ✅ Creates optimally-sized fragments
+    table.add(batch)  # ✅ Creates optimally-sized fragments, now parallelized
 
 # Regular compaction for streaming workloads
 table.compact_files(target_rows_per_fragment=1_000_000)
@@ -605,7 +642,20 @@ table.search(vector).where("value IN (1, 2, 3, 4, 5)")
 
 ## Version-Specific Features
 
-### Lance SDK v1.0.0+ (December 2025)
+### Lance SDK v3.0.0 (March 2026)
+- IVF-based index prewarm support for faster cold starts
+- FTS usable as a filter in vector search queries
+- `when_matched_delete` in merge_insert operations
+- Stable row IDs enabled in commit operations
+- Aggregate operations in scanner
+- Tencent COS object storage support
+- Custom headers for object store requests
+- Schema evolution: alter column nullable to non-nullable
+- File Format v2.2 development: faster scans via structural decode batching
+- DataFusion upgraded to 52.1.0
+- **Breaking**: Shuffle buffer removed, index progress callback changes
+
+### Lance SDK v1.0.0 (December 2025)
 - Graduated to stable SemVer releases
 - Breaking changes only on major version bumps (2.0, 3.0, etc.)
 - Breaking changes never invalidate existing Lance data, only SDK-level APIs
@@ -621,7 +671,21 @@ table.search(vector).where("value IN (1, 2, 3, 4, 5)")
 - 30x faster scans with predicates
 - 94% IO reduction in optimal scenarios
 
-### LanceDB v0.26+ (December 2025 onwards)
+### LanceDB v0.30.0 (March 2026)
+- Lance dependency upgraded to v3.0.0
+- Parallel inserts for local tables (significant write throughput improvement)
+- `fast_search` parameter: skip unindexed data for lower latency
+- `explain_plan()` and `analyze_plan()` for query debugging and optimization
+- `prewarm_index()` and `prewarm_data()` for remote tables
+- `list_tables()` replaces deprecated `table_names()` (adds pagination)
+- `num_deleted_rows` returned from delete operations
+- Background dataset update checking
+- Remote table schema caching for performance
+- Boolean FTS queries: combine with `and`/`or` (`&`/`|`), phrase `slop`, prefix search
+- Dict-to-SQL struct conversion in `table.update()`
+- `when_matched_delete` in merge_insert
+
+### LanceDB v0.26+ (December 2025)
 - Lance dependency upgraded to v2.0.0
 - `num_partitions` defaults auto-determined by Lance
 - Namespace credentials vending and async namespace connection
@@ -644,12 +708,15 @@ table.search(vector).where("value IN (1, 2, 3, 4, 5)")
 ### Recent Search Enhancements
 - **Multivector search**: Late interaction models (ColBERT, ColPaLi) with per-document vector lists
 - **Distance range filtering**: `distance_range()` for bounded similarity search
+- **FTS as vector search filter**: Use full-text search conditions as pre/post-filters in vector queries
+- **Boolean FTS**: SHOULD/MUST/MUST_NOT operators, phrase matching with `slop`, prefix search
 - **Fuzzy search & boosting**: Typo-tolerant FTS with relevance tuning
-- **Hybrid search with reranking**: Combined vector + FTS with cross-encoder rerankers
+- **Hybrid search with reranking**: Combined vector + FTS with cross-encoder rerankers; reranker info in explain plans
 - **Hamming distance**: Binary vector similarity search
 - **GPU-accelerated IVF-PQ**: 10x faster index builds
 - **HNSW-accelerated partition computation**: Up to 50% less indexing time
 - **500x faster range queries**: 100us on 1M int32 values (from 50ms)
+- **`fast_search` mode**: Skip unindexed data for lower latency when freshness is not critical
 
 ### Ecosystem Additions
 - **lance-graph**: Graph module contributed by Uber (Cypher queries, COLLECT aggregation, WITH clause)
@@ -659,6 +726,8 @@ table.search(vector).where("value IN (1, 2, 3, 4, 5)")
 - **lance-data-viewer**: Local web UI for browsing Lance tables
 - **lance-namespace**: Open spec for standardized access to Lance table collections
 - **Spark integration**: Via lance-spark for distributed workloads
+- **Lance-Trino integration**: SQL analytics via Trino connector
+- **OpenTelemetry instrumentation**: `opentelemetry-instrumentation-lancedb` for observability
 
 ## Common Patterns
 
@@ -772,10 +841,12 @@ diff = set(v2_data["timestamp"]) - set(v1_data["timestamp"])
 ### Common Issues
 
 **Slow Queries:**
+- Use `explain_plan()` and `analyze_plan()` to identify bottlenecks
 - Check if data is clustered on filter columns
 - Create appropriate indices (scalar/vector)
 - Use column selection (`.select()`) to reduce data scanned
 - Run `table.compact_files()` if many small fragments exist
+- Try `fast_search=True` if freshness is not required
 
 **Slow Queries on S3 / Remote Storage:**
 - Point lookups are bounded by serial round-trips (manifest→index→data), not parallelism
@@ -813,7 +884,7 @@ diff = set(v2_data["timestamp"]) - set(v1_data["timestamp"])
 
 ### Install
 ```bash
-pip install pylance lancedb  # pylance >=2.0.1, lancedb >=0.29.2
+pip install pylance lancedb  # pylance >=3.0.0, lancedb >=0.30.0
 ```
 
 ### Basic Operations
@@ -844,7 +915,7 @@ duckdb.query("SELECT * FROM lance_dataset WHERE col > 10")
 ```
 
 ### Performance Checklist
-- ✅ Use batch inserts (not single rows)
+- ✅ Use batch inserts (not single rows) — parallel inserts in v0.30.0+
 - ✅ Run compaction regularly (background compaction now available)
 - ✅ Create indices for frequent queries (scalar indexes speed up merge_insert)
 - ✅ Use column selection in queries
@@ -853,12 +924,15 @@ duckdb.query("SELECT * FROM lance_dataset WHERE col > 10")
 - ✅ Stream large result sets
 - ✅ Use session-level cache control for large datasets
 - ✅ Consider GPU-accelerated index builds for large vector datasets
+- ✅ Prewarm indices for faster cold-start queries
+- ✅ Use `fast_search=True` when freshness is not critical
+- ✅ Use `explain_plan()` / `analyze_plan()` to diagnose slow queries
 
 ---
 
 When helping users with Lance:
-1. Always check version compatibility (Lance SDK 1.0.0+, pylance 2.0.1, LanceDB 0.29.2)
-2. Recommend batch operations over single-row operations
+1. Always check version compatibility (Lance SDK 3.0.0, pylance 3.0.0, LanceDB 0.30.0)
+2. Recommend batch operations over single-row operations (parallel inserts in v0.30.0+)
 3. Suggest appropriate indices based on query patterns (vector, scalar, FTS, multivector, geospatial)
 4. Optimize for data clustering when possible
 5. Use DuckDB integration for complex SQL analytics (now with Arrow Flight-SQL)
@@ -867,3 +941,6 @@ When helping users with Lance:
 8. Use session-level cache configuration instead of deprecated `index_cache_size`
 9. Consider multivector search for ColBERT/ColPaLi late interaction models
 10. Use `distance_range()` when bounded similarity is needed instead of top-k
+11. Use `explain_plan()` / `analyze_plan()` to diagnose query performance issues
+12. Use `list_tables()` instead of deprecated `table_names()`
+13. Prewarm indices on startup for latency-sensitive applications
