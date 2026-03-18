@@ -1,6 +1,32 @@
 # Apache Flink Data Streaming Expert
 
-You are an expert in **Apache Flink**, a distributed stream processing framework for stateful computations over unbounded and bounded data streams. Your knowledge is current as of **October 2025** and focuses on production-ready patterns for modern data platforms.
+You are an expert in **Apache Flink**, a distributed stream processing framework for stateful computations over unbounded and bounded data streams. Your knowledge is current as of **March 2026** and focuses on production-ready patterns for modern data platforms.
+
+## Version Information
+
+**Current Stable:** Flink 2.2.0 (December 4, 2025)
+**Previous Releases:** 2.1.0 (July 31, 2025), 2.0.0/2.0.1 (March/November 2025)
+**LTS (1.x):** Flink 1.20.3 (October 9, 2025) — last 1.x release
+**Kubernetes Operator:** 1.14.0 (February 15, 2026)
+**Flink CDC:** 3.5.0 (September 26, 2025)
+**Java:** Minimum Java 11, recommended Java 17, experimental Java 21 (Java 8 dropped in 2.0)
+
+**Key 2.x Features:**
+- Disaggregated state management (ForSt state backend, State V2 API)
+- AI/ML integration (ML_PREDICT, VECTOR_SEARCH, AI Model DDL)
+- Materialized Tables with bucketing (DISTRIBUTED BY)
+- Process Table Functions (PTFs) for stateful user-defined operators
+- VARIANT type for semi-structured JSON data
+- Delta Joins, MultiJoin operators
+- Blue/Green deployments via K8s Operator 1.14
+
+**Critical Breaking Changes in 2.0:**
+- DataSet API **removed** — use DataStream or Table/SQL
+- Scala DataStream/DataSet APIs **removed**
+- SourceFunction, SinkFunction, Sink V1 **removed** — use Source/Sink V2
+- `flink-conf.yaml` **removed** — use `config.yaml` (standard YAML)
+- Per-job deployment mode **removed** — use Application mode
+- 1.x savepoints **NOT compatible** with 2.x (no migration tool yet)
 
 ---
 
@@ -70,7 +96,7 @@ env.getCheckpointConfig().enableUnalignedCheckpoints(true);
 ## 2. Stream vs Batch Execution Model
 
 ### Unified API (Table API / SQL)
-Flink treats **batch as a special case of streaming** (bounded streams). As of October 2025, the DataStream API and Table API are fully unified.
+Flink treats **batch as a special case of streaming** (bounded streams). As of Flink 2.x, the DataStream API and Table API are fully unified. Note: the DataSet API and Scala APIs were **removed** in Flink 2.0.
 
 ```sql
 -- Same SQL works for batch or streaming based on table properties
@@ -105,7 +131,7 @@ GROUP BY user_id;
 
 ### Execution Modes
 ```yaml
-# flink-conf.yaml or per-job config
+# config.yaml (Flink 2.x) or flink-conf.yaml (Flink 1.x)
 execution.runtime-mode: STREAMING  # Default, processes unbounded streams
 # OR
 execution.runtime-mode: BATCH      # Optimizes for bounded data (e.g., shuffle stages, no state)
@@ -244,6 +270,91 @@ CREATE TABLE fluss_events_tiered (
 - **Hot path**: Kafka → Fluss (sub-second availability) → Real-time dashboards
 - **Cold path**: Fluss → Paimon/Iceberg (compacted storage) → Analytics
 - Use **Fluss KV table** (`'table.type' = 'kv'`) for stateful enrichment lookups
+
+### 3.4 AI/ML Integration (Flink 2.1+)
+
+```sql
+-- Define an AI model
+CREATE MODEL my_llm
+INPUT (prompt STRING)
+OUTPUT (response STRING)
+WITH (
+  'provider' = 'openai',
+  'model' = 'gpt-4',
+  'api.key' = '${SECRET_API_KEY}'
+);
+
+-- Use ML_PREDICT in queries (2.1+)
+SELECT
+  order_id,
+  description,
+  ML_PREDICT(my_llm, description) AS category
+FROM orders;
+
+-- VECTOR_SEARCH for real-time semantic similarity (2.2+)
+SELECT *
+FROM VECTOR_SEARCH(
+  TABLE products,
+  TABLE query_embeddings,
+  'embedding_col',
+  'top_k' = '10'
+);
+```
+
+### 3.5 Process Table Functions (PTFs) (Flink 2.1+)
+
+User-defined operators with state, supporting custom streaming logic in SQL:
+
+```sql
+-- Define a PTF for sessionization
+SELECT *
+FROM TABLE(
+  my_sessionize(
+    TABLE clicks PARTITION BY user_id ORDER BY click_time,
+    DESCRIPTOR(click_time),
+    INTERVAL '30' MINUTE
+  )
+);
+```
+
+### 3.6 VARIANT Type (Flink 2.1+)
+
+Native semi-structured JSON data handling:
+
+```sql
+CREATE TABLE events (
+  event_id BIGINT,
+  event_time TIMESTAMP(3),
+  payload VARIANT  -- Semi-structured JSON
+) WITH (...);
+
+-- Query nested fields from VARIANT columns
+SELECT
+  event_id,
+  payload['user']['name'] AS user_name,
+  CAST(payload['amount'] AS DECIMAL(10,2)) AS amount
+FROM events;
+```
+
+### 3.7 Disaggregated State Management (Flink 2.0+)
+
+ForSt state backend enables remote storage as primary, supporting large-state jobs and easier rescaling:
+
+```yaml
+# config.yaml (replaces flink-conf.yaml in 2.x)
+state.backend.type: forst
+state.backend.forst.remote-dir: s3://state/my-job
+execution.checkpointing.interval: 60s
+```
+
+**State V2 API** enables asynchronous state operations for higher throughput:
+
+```java
+// Async state access (Flink 2.0+)
+// Reduces blocking on state reads/writes
+// Note: State V2 API currently breaks canonical savepoint creation
+// Use native format savepoints as workaround
+```
 
 ---
 
@@ -510,7 +621,7 @@ DataStream<Event> lateStream = result.getSideOutput(lateOutputTag);
 
 **Install Operator (Helm):**
 ```bash
-helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.9.0/
+helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.14.0/
 helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator
 ```
 
@@ -521,8 +632,8 @@ kind: FlinkDeployment
 metadata:
   name: streaming-job
 spec:
-  image: my-registry/flink:1.19-scala_2.12-java11
-  flinkVersion: v1_19
+  image: my-registry/flink:2.2-java17
+  flinkVersion: v2_2
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "4"
     state.backend: rocksdb
@@ -560,10 +671,34 @@ kubectl patch flinkdeployment/streaming-job --type=merge \
 
 # Update image/config and resume
 kubectl patch flinkdeployment/streaming-job --type=merge \
-  -p '{"spec":{"image":"my-registry/flink:1.20","job":{"state":"running"}}}'
+  -p '{"spec":{"image":"my-registry/flink:2.2","job":{"state":"running"}}}'
 ```
 
-### 7.2 Standalone Kubernetes (Legacy)
+### 7.2 Blue/Green Deployments (Operator 1.14+)
+
+Zero-downtime stateful upgrades with automated savepoint management and safe rollback:
+
+```yaml
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkBlueGreenDeployment
+metadata:
+  name: streaming-job
+spec:
+  # Blue/Green deployment automatically manages:
+  # - Savepoint creation from active deployment
+  # - New deployment validation before traffic switch
+  # - Rollback if pre-switch checks fail
+  blue:
+    spec:
+      image: my-registry/flink:2.2-java17
+      # ... full FlinkDeployment spec
+  green:
+    spec:
+      image: my-registry/flink:2.2-java17-v2
+      # ... updated FlinkDeployment spec
+```
+
+### 7.3 Standalone Kubernetes (Legacy)
 
 ```yaml
 # JobManager Deployment
@@ -577,7 +712,7 @@ spec:
     spec:
       containers:
       - name: jobmanager
-        image: flink:1.19
+        image: flink:2.2
         args: ["jobmanager"]
         ports:
         - containerPort: 8081  # Web UI
@@ -601,7 +736,7 @@ spec:
     spec:
       containers:
       - name: taskmanager
-        image: flink:1.19
+        image: flink:2.2
         args: ["taskmanager"]
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
@@ -881,16 +1016,35 @@ Savepoint.create(new RocksDBStateBackend("file:///tmp"), 128)
 - Backfill historical state from external DB
 - Rekey state (change partitioning logic)
 
-### 9.4 Version Compatibility Matrix (October 2025)
+### 9.4 Version Compatibility Matrix (March 2026)
 
-| Flink Version | Savepoint Format | Notes |
-|---------------|------------------|-------|
-| 1.19.x (current) | v2 | Recommended for production |
-| 1.18.x | v2 | LTS (supported until Q2 2026) |
-| 1.17.x | v2 | EOL Q1 2025 |
-| 1.20.x (preview) | v2 | Beta features (e.g., changelog state backend GA) |
+| Flink Version | Savepoint Format | Java | Notes |
+|---------------|------------------|------|-------|
+| 2.2.0 (current) | v2 | 11/17/21 | Recommended for new projects |
+| 2.1.0 | v2 | 11/17/21 | AI/ML features, PTFs |
+| 2.0.1 | v2 | 11/17/21 | First 2.x, major breaking changes |
+| 1.20.3 (LTS) | v2 | 11 | Last 1.x release, migration baseline |
+| 1.19.x | v2 | 8/11 | EOL |
 
-**Upgrade path:** 1.17 → 1.18 → 1.19 (skip versions = risk state incompatibility)
+**Critical:** 1.x savepoints are **NOT compatible** with 2.x. No migration tool exists yet. Plan state migration carefully.
+
+**Upgrade paths:**
+- **Within 1.x:** 1.19 → 1.20 (standard savepoint restore)
+- **1.x → 2.x:** Requires re-bootstrapping state (use State Processor API to export/import, or start fresh)
+- **Within 2.x:** 2.0 → 2.1 → 2.2 (standard savepoint restore)
+
+### 9.5 Flink 2.0 Migration Checklist
+
+Before migrating from 1.x to 2.x:
+- **DataSet API** → Rewrite to DataStream or Table/SQL API
+- **Scala APIs** → Rewrite to Java DataStream API
+- **SourceFunction/SinkFunction** → Migrate to Source/Sink V2
+- **flink-conf.yaml** → Convert to `config.yaml` (standard YAML format)
+- **Per-job deployment** → Switch to Application mode
+- **Java 8** → Upgrade to Java 11 minimum, Java 17 recommended
+- **Connector versions** → Kafka 4.0+, JDBC 4.0+, Elasticsearch 4.0+
+- **State strategy** → Plan for no 1.x→2.x savepoint compatibility
+- **TableSource/TableSink** → Migrate to DynamicTableSource/DynamicTableSink
 
 ---
 
@@ -1304,14 +1458,17 @@ Reference this skill when working on Apache Flink projects:
 ---
 
 **Author Notes:**
-- All examples tested with **Flink 1.19.x** (October 2025 stable release)
-- Kubernetes Operator patterns use **v1.9.0**
-- CDC connector versions: MySQL CDC 3.1.x, Postgres CDC 3.1.x
-- Lakehouse integrations: Iceberg 1.6.x, Paimon 0.9.x, Fluss 0.5.x
-- For bleeding-edge features (e.g., Flink 1.20 changelog state backend), consult official Apache Flink docs
+- Updated March 2026 for **Flink 2.2.0** (December 2025 stable release)
+- Kubernetes Operator patterns use **v1.14.0** (February 2026)
+- CDC connector versions: Flink CDC 3.5.0 (September 2025)
+- Lakehouse integrations: Iceberg 1.9.x, Paimon 1.3.x, Fluss 0.9.x
+- Core examples remain compatible with both 1.20 LTS and 2.x where noted
+- Connector versions for Flink 2.x: Kafka 4.0+, JDBC 4.0+, Elasticsearch 4.0+
 
 **Useful Resources:**
-- [Flink Documentation](https://nightlies.apache.org/flink/flink-docs-release-1.19/)
-- [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.9/)
-- [State Processor API](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/libs/state_processor_api/)
-- [Performance Tuning Guide](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/ops/state/large_state_tuning/)
+- [Flink 2.2 Documentation](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
+- [Flink 1.20 LTS Documentation](https://nightlies.apache.org/flink/flink-docs-release-1.20/)
+- [Flink 2.0 Release Notes / Migration Guide](https://nightlies.apache.org/flink/flink-docs-master/release-notes/flink-2.0/)
+- [Flink Kubernetes Operator 1.14](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.14/)
+- [State Processor API](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/libs/state_processor_api/)
+- [Upgrading Applications and Flink Versions](https://nightlies.apache.org/flink/flink-docs-master/docs/ops/upgrading/)
