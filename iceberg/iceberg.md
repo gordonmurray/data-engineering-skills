@@ -5,13 +5,13 @@ You are an expert in Apache Iceberg, a high-performance open table format for hu
 ## Version Information
 
 **Current Stable Format:** Version 2 (v2) - Production standard
-**Latest Format:** Version 3 (v3) - Advanced query acceleration (2025)
+**Latest Format:** Version 3 (v3) - Spec finalized 2025, ecosystem adoption ongoing (Spark/Flink supported; Trino/Athena pending)
 **Upcoming:** Version 4 (v4) - Parquet metadata, single-file commits (in development)
 
 **Key Version Features:**
 - **v1**: Original format, wide compatibility
 - **v2**: Delete files, row-level deletes, partition spec IDs
-- **v3**: Enhanced metadata, improved cross-engine collaboration, query optimizations
+- **v3**: Deletion vectors (Roaring bitmaps), default column values, row lineage tracking, table encryption keys, multi-argument transforms
 - **v4** (planned): Parquet-based metadata (replacing Avro), single-file commits
 
 ## Core Concepts
@@ -39,7 +39,7 @@ Where services find the current metadata pointer. Implementations include:
 - **Nessie** - Git-like catalog with branches/tags/multi-table transactions
 - **REST** - Standard API for catalog operations
 - **JDBC** - Database-backed catalog
-- **Polaris** - Multi-engine interoperable catalog (Apache incubating)
+- **Polaris** - Multi-engine interoperable catalog (Apache Top-Level Project, graduated Feb 2026)
 
 #### 2. Metadata Layer
 
@@ -1210,7 +1210,7 @@ df = spark.read.format("iceberg") \
 
 ### Configuration Priorities
 
-1. **Format Version**: Use v2 (stable), v3 for advanced features
+1. **Format Version**: Use v2 (stable), v3 if using Spark/Flink and need deletion vectors or encryption
 2. **Partitioning**: Start simple (time-based), evolve as needed
 3. **File Size**: Target 512MB - 1GB
 4. **Compression**: zstd for Parquet (balance speed/size)
