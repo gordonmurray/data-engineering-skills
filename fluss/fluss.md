@@ -4,18 +4,48 @@ You are an expert in Apache Fluss (Incubating), a streaming storage built for re
 
 ## Version Information
 
-**Current Stable:** Fluss 0.7.0 (2025)
-**Status:** Apache Incubator (joined ASF June 2025)
-**Recommended Flink:** Flink 1.19+, Flink 2.0+ (Materialized Tables support)
+**Current Stable:** Fluss 0.9.0 (March 2, 2026)
+**Previous Releases:** 0.8.0 (November 9, 2025 — first Apache release), 0.7.0 (June 2025)
+**Status:** Apache Incubator (joined ASF June 2025, graduation timeline TBD)
+**Recommended Flink:** Flink 1.19+, Flink 2.0+, Flink 2.2 (Delta Join support)
+**Recommended Spark:** Supported from 0.9.0 (catalog, batch/stream reads and writes)
 **Flink CDC:** 3.5.0+ (Fluss Pipeline Connector available)
+**Java Minimum:** Java 11 (upgraded from Java 8 in 0.8.0)
 
-**Key 2025 Developments:**
-- Joined Apache Incubator (June 2025)
-- Flink CDC 3.5 Fluss Pipeline Connector
-- Multi-AZ rack-aware replica placement
-- Enhanced tiering service for lakehouse integration
-- Columnar Arrow IPC storage with projection pushdown
-- Transitioning from ZooKeeper to KvStore + Raft (roadmap)
+**Key 0.9.0 Features (March 2026):**
+- Apache Spark integration (catalog support, batch/stream unified analytics)
+- Complex type support (nested ARRAY, MAP, ROW types)
+- Zero-copy schema evolution (add columns without affecting existing jobs)
+- Auto-increment columns for dictionary tables
+- Aggregation merge engine (pushes aggregations to storage layer)
+- Change Data Feed: virtual `$changelog` and `$binlog` tables for audit trails
+- Compacted log format (row-oriented storage option for full-row scans)
+- Dynamic sink shuffle (runtime-aware partition load balancing)
+- KV snapshot lease (consumer-aware snapshot lifecycle management)
+- Cluster rebalance (automatic bucket redistribution during scaling)
+- Azure cloud support (Blob Storage, ADLS Gen2)
+- Flink 2.2 compatibility with enhanced Delta Join support
+- Java Client POJO support
+
+**Key 0.8.0 Features (November 2025):**
+- First Apache release under ASF
+- Apache Iceberg tiering support (real-time ingestion with native upsert/delete)
+- Lance format tiering support (AI/ML vector and embedding data)
+- Built-in compaction service with optimized snapshot management
+- Delta Joins with Flink (80% less CPU/memory, checkpoints reduced from 90s to 1s)
+- Materialized Tables (continuously refreshed result tables with freshness targets)
+- Dynamic configuration updates without restarts
+- Graceful shutdown and leadership migration for rolling upgrades
+- Coordinator recovery accelerated from 10 minutes to 20 seconds
+- Kubernetes Helm charts for full cluster deployment
+- Metrics telemetry reduced by 90%
+- 35+ stability fixes validated through Alibaba Double 11 production
+
+**Roadmap (planned):**
+- ZooKeeper removal — migration to KvStore + Raft coordination
+- Zero Disks Architecture — S3/cloud-native storage for serverless operation
+- Python Client SDK (PyArrow/Pandas ecosystem)
+- Trino and DuckDB connectors
 
 ## Core Concepts
 
@@ -531,13 +561,22 @@ table.datalake.format: paimon
 remote.data.dir: s3://bucket/lakehouse/
 ```
 
-**Iceberg Integration:**
+**Iceberg Integration (0.8+):**
 
 ```yaml
-# Fluss → Iceberg tiering
+# Fluss → Iceberg tiering (native upsert/delete support)
 table.datalake.enabled: true
 table.datalake.format: iceberg
 remote.data.dir: s3://bucket/lakehouse/
+```
+
+**Lance Integration (0.8+):**
+
+```yaml
+# Fluss → Lance tiering (AI/ML vector and embedding workloads)
+table.datalake.enabled: true
+table.datalake.format: lance
+remote.data.dir: s3://bucket/lance/
 ```
 
 ### Query Unified Hot + Cold Data
@@ -692,6 +731,89 @@ tEnv.executeSql(
 DataStream<RowData> dataStream = ...;
 Table table = tEnv.fromDataStream(dataStream);
 table.executeInsert("events");
+```
+
+### Apache Spark Integration (0.9+)
+
+Fluss 0.9 added Spark catalog support for unified batch and streaming analytics.
+
+```sql
+-- Create Fluss catalog in Spark
+CREATE CATALOG fluss WITH (
+  'type' = 'fluss',
+  'bootstrap.servers' = 'fluss-server:9123'
+);
+
+USE CATALOG fluss;
+
+-- Batch read
+SELECT * FROM analytics.events WHERE dt = '2026-03-18';
+
+-- Streaming read
+SELECT * FROM analytics.events /*+ OPTIONS('scan.startup.mode'='latest') */;
+
+-- Write to Fluss from Spark
+INSERT INTO analytics.events
+SELECT * FROM other_catalog.raw_events;
+```
+
+### Delta Joins (0.8+)
+
+Delta Joins reduce CPU/memory by up to 80% compared to regular temporal joins. Flink reads only changed records from Fluss rather than full snapshots.
+
+```sql
+-- Delta Join (Flink 2.0+)
+-- Fluss automatically detects when delta joins are possible
+SELECT
+  o.order_id,
+  o.amount,
+  u.name,
+  u.tier
+FROM orders_stream o
+LEFT JOIN users FOR SYSTEM_TIME AS OF o.order_time AS u
+  ON o.user_id = u.user_id;
+-- With Fluss primary key tables, this uses delta join internally
+-- Checkpoints reduced from 90s to ~1s, state nearly eliminated
+```
+
+### Aggregation Merge Engine (0.9+)
+
+Push real-time aggregations to the storage layer for near-stateless Flink jobs.
+
+```sql
+CREATE TABLE page_views_agg (
+  page_id STRING,
+  view_count BIGINT,
+  last_viewed TIMESTAMP(3),
+  PRIMARY KEY (page_id) NOT ENFORCED
+) WITH (
+  'connector' = 'fluss',
+  'bootstrap.servers' = 'fluss-server:9123',
+  'bucket.num' = '8',
+  'table.merge-engine' = 'aggregation'
+);
+```
+
+### Change Data Feed (0.9+)
+
+Virtual `$changelog` and `$binlog` tables provide complete audit trails without extra compute.
+
+```sql
+-- Read full changelog (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE)
+SELECT * FROM fluss.analytics.users$changelog;
+
+-- Read binlog format
+SELECT * FROM fluss.analytics.users$binlog;
+```
+
+### Schema Evolution (0.9+)
+
+Zero-copy schema evolution — adding new columns does not affect existing running jobs after client upgrade.
+
+```sql
+-- Add column to existing table (all clients must be on 0.9+)
+ALTER TABLE analytics.events ADD COLUMN source STRING;
+-- Existing jobs continue without restart
 ```
 
 ### CDC Integration Patterns
@@ -1023,7 +1145,7 @@ CREATE TABLE events (...) WITH (
 # docker-compose.yml
 services:
   coordinator:
-    image: fluss/fluss:0.7.0
+    image: fluss/fluss:0.9.0
     command: coordinator-server
     environment:
       - FLUSS_PROPERTIES=
@@ -1033,7 +1155,7 @@ services:
       - "9123:9123"
 
   tablet-1:
-    image: fluss/fluss:0.7.0
+    image: fluss/fluss:0.9.0
     command: tablet-server
     environment:
       - FLUSS_PROPERTIES=
@@ -1051,6 +1173,19 @@ services:
 volumes:
   tablet1-data:
 ```
+
+### Kubernetes Deployment (0.8+)
+
+Helm charts are available for full cluster deployment:
+
+```bash
+helm repo add fluss https://fluss.apache.org/charts
+helm install fluss fluss/fluss \
+  --set coordinatorServer.replicas=3 \
+  --set tabletServer.replicas=3
+```
+
+See official docs: https://fluss.apache.org/docs/install-deploy/deploying-with-helm/
 
 ### Coordinator and TabletServer Roles
 
@@ -1321,7 +1456,7 @@ log.compaction.interval.ms: 60000
 
 # Tiering
 table.datalake.enabled: true
-table.datalake.format: paimon  # or iceberg
+table.datalake.format: paimon  # or iceberg or lance
 log.tiering.interval.ms: 300000
 
 # Auto-partitioning
@@ -1346,16 +1481,44 @@ log.roll.hours: 1
 - ✅ Monitor tablet server disk usage
 - ✅ Enable exactly-once semantics in Flink
 
+## Upgrade Notes
+
+### Upgrading to 0.9.0
+
+**Breaking Changes:**
+- **All clients must upgrade:** KV format v2 is incompatible with older versions; all clients must reach 0.9+ before using new features
+- **Schema evolution requires coordinated upgrade:** All servers and clients must be on 0.9+ before adding columns to prevent schema inconsistency
+- **Primary key encoding change:** Tables with bucket keys differing from primary keys now use Fluss default encoder; legacy tables retain v1 encoding but may need recreation
+- **Configuration consolidation:** Three deprecated options merged into `server.io-pool.size` (default: 10):
+  - `coordinator.io-pool.size` → `server.io-pool.size`
+  - `remote.log.data-transfer-thread-num` → `server.io-pool.size`
+  - `kv.snapshot.transfer-thread-num` → `server.io-pool.size`
+
+**Paimon Integration Changes (0.9):**
+- `fluss-lake-paimon` JAR no longer bundles paimon-bundle
+- Users must manually add compatible paimon-bundle JAR to Flink lib directory
+- Tested compatible: Paimon 1.1, 1.2, 1.3 (1.3 required for tiering services)
+- Limitation: Partitioned tables with non-String keys cannot enable deletion vectors with Paimon format
+
+### Upgrading to 0.8.0
+
+- Backward compatible with 0.7 clients/servers for protocol and storage formats
+- Package paths changed due to Apache Incubator restructuring — code adjustments needed
+- Java 11 minimum (up from Java 8)
+
 ---
 
 When helping users with Apache Fluss:
 1. **Emphasize columnar advantage** - 10x read performance vs row-based
-2. **Tiered architecture is key** - Hot (Fluss) + Cold (Lakehouse) = cost-efficient
+2. **Tiered architecture is key** - Hot (Fluss) + Cold (Lakehouse via Paimon, Iceberg, or Lance) = cost-efficient
 3. **Choose right table type** - Log for immutable, PK for mutable
-4. **Leverage Flink integration** - Purpose-built for Flink streaming
-5. **Configure tiering policies** - Balance latency and storage cost
-6. **Monitor replication** - Under-replicated tablets = data risk
-7. **Use rack-aware placement** - Multi-AZ deployments (0.7+)
-8. **Bucket count matters** - Parallelism and hot spot avoidance
-9. **Fluss + Paimon synergy** - Real-time + historical unified
-10. **CDC with Flink CDC 3.5** - Native Fluss pipeline connector
+4. **Leverage Flink integration** - Purpose-built for Flink streaming, Delta Joins for efficiency
+5. **Spark is now supported** - 0.9+ provides catalog support for unified batch/stream analytics
+6. **Configure tiering policies** - Balance latency and storage cost
+7. **Monitor replication** - Under-replicated tablets = data risk
+8. **Use rack-aware placement** - Multi-AZ deployments (0.7+)
+9. **Bucket count matters** - Parallelism and hot spot avoidance
+10. **Aggregation merge engine** - Push aggregations to storage for near-stateless Flink jobs (0.9+)
+11. **Schema evolution** - Zero-copy column additions without restarting jobs (0.9+)
+12. **CDC with Flink CDC 3.5** - Native Fluss pipeline connector
+13. **Upgrade carefully** - 0.9 has breaking KV format changes; all clients must upgrade together
