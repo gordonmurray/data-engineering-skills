@@ -1,82 +1,97 @@
-# Claude Code Skills
+# Data Engineering Skills for Claude
 
-Expert knowledge skills for Claude Code to help with specific technologies and tools.
+Expert knowledge skills for Claude Code and Claude.ai covering modern data
+engineering technologies — table formats, stream processing, streaming storage,
+ML-native formats, and local orchestration.
 
-## What are Skills?
-
-Skills are specialized knowledge modules that extend Claude Code's expertise in specific domains. When invoked, a skill provides detailed context, best practices, code examples, and troubleshooting guidance for a particular technology.
+Each skill follows the
+[Anthropic Agent Skills](https://www.anthropic.com/news/skills) standard:
+a folder containing a `SKILL.md` with YAML frontmatter that Claude loads on
+demand when the trigger conditions match.
 
 ## Available Skills
 
-This repository contains skills for:
+| Skill | Domain | File |
+| --- | --- | --- |
+| **Apache Iceberg** | Open table format / lakehouse | [`iceberg/SKILL.md`](iceberg/SKILL.md) |
+| **Apache Paimon** | Streaming lake format | [`paimon/SKILL.md`](paimon/SKILL.md) |
+| **Apache Fluss** | Streaming storage for real-time analytics | [`fluss/SKILL.md`](fluss/SKILL.md) |
+| **Apache Flink** | Stream processing framework | [`flink/SKILL.md`](flink/SKILL.md) |
+| **Apache Iggy** | Rust-native message streaming | [`iggy/SKILL.md`](iggy/SKILL.md) |
+| **Lance** | Columnar format for ML/AI + vector search | [`lance/SKILL.md`](lance/SKILL.md) |
+| **Docker Compose** | Container orchestration (V2+) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
 
-- **Apache Lance** - Modern columnar data format for ML/AI applications
-- **Docker Compose** - Container orchestration with modern V2+ syntax
+## How Skills Work
 
-See individual skill directories for detailed documentation.
+Skills use a three-level progressive disclosure model:
 
-## How to Use Skills in Claude Code
+1. **YAML frontmatter** (always loaded) — `name` and `description` tell Claude
+   when the skill is relevant.
+2. **`SKILL.md` body** (loaded on trigger) — core instructions and guidance.
+3. **Bundled files** (loaded on demand) — deeper references, scripts, or
+   templates referenced from `SKILL.md`.
 
-### Option 1: Direct File Reference (Recommended)
+This keeps context usage small until the skill is actually needed.
 
-Reference a skill file directly in your conversation:
+## Using These Skills
+
+### Claude Code
+
+Place a skill folder (or symlink it) into `~/.claude/skills/` or a project
+`.claude/skills/` directory. Claude Code discovers `SKILL.md` files
+automatically and loads them based on the frontmatter `description`.
+
+Alternatively, reference a skill file directly in a conversation:
 
 ```
-@lance/lance.md help me create a Lance dataset with vector search
+@iceberg/SKILL.md help me migrate an Iceberg v2 table to v3 deletion vectors
 ```
 
-or
+### Claude.ai
 
-```
-@docker-compose/docker-compose.md write a compose file for a Django app with Postgres and Redis
-```
+Zip a skill folder and upload via **Settings → Capabilities → Skills**.
 
-### Option 2: Add as Context
+### Claude API
 
-Add skill files to your Claude Code context:
-1. Use `@` to reference files
-2. Ask questions or request help with that technology
-3. Claude will use the skill's expertise to provide accurate, up-to-date guidance
-
-### Option 3: Copy to Project
-
-Copy relevant skill files into your project's `.claude/` directory for project-specific reference.
+Pass the skill via `container.skills` on the Messages API (requires the Code
+Execution Tool beta). See the
+[Skills API Quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills).
 
 ## Skill Structure
 
-Each skill is organized in its own directory:
+Each skill conforms to the Agent Skills standard:
 
 ```
-skills/
-├── lance/
-│   └── lance.md
-├── docker-compose/
-│   └── docker-compose.md
-└── README.md
+skill-name/
+└── SKILL.md     # Required: YAML frontmatter + Markdown instructions
 ```
 
-## Creating Your Own Skills
+Minimum frontmatter:
 
-Skills are markdown files containing:
-
-1. **Expert context** - Positioning Claude as an expert in the domain
-2. **Version information** - Current versions and compatibility notes
-3. **Core concepts** - Key terminology and architecture
-4. **Common operations** - Practical code examples
-5. **Best practices** - Performance tips and patterns
-6. **Troubleshooting** - Common errors and solutions
-7. **Quick reference** - Checklists and command summaries
-
-Structure your skill to provide comprehensive, actionable guidance that helps Claude Code generate correct, modern code.
-
-## Benefits
-
-- **Accurate answers** - Skills provide current, version-specific information
-- **Best practices** - Learn recommended patterns and avoid deprecated syntax
-- **Code examples** - Working templates you can adapt immediately
-- **Troubleshooting** - Quick solutions to common problems
-- **Consistency** - Get uniform guidance across your team
+```yaml
+---
+name: skill-name
+description: What the skill does and when Claude should use it (trigger phrases).
+---
+```
 
 ## Contributing
 
-Add new skills by creating a directory with a descriptive markdown file. Follow the existing skill structure for consistency.
+To add a new skill:
+
+1. Create a kebab-case folder: `your-skill-name/`.
+2. Add a `SKILL.md` with valid YAML frontmatter (`name` matches the folder;
+   `description` includes both *what it does* and *when to use it*, with
+   specific trigger phrases).
+3. Keep `SKILL.md` focused; move deep reference material to `references/` and
+   executable helpers to `scripts/` within the skill folder.
+4. Update the table above.
+
+See Anthropic's
+[Complete Guide to Building Skills for Claude](https://www.anthropic.com)
+(bundled as `The-Complete-Guide-to-Building-Skill-for-Claude.pdf` in this repo)
+for full authoring guidance.
+
+## License
+
+See [LICENSE](LICENSE).
