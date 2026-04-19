@@ -1,6 +1,11 @@
+---
+name: flink
+description: Apache Flink stream processing expertise for stateful computations over bounded and unbounded streams. Use when the user mentions Flink, stream processing, Flink SQL, Table API, DataStream API, CDC, Kafka-to-Flink pipelines, checkpointing/savepoints, watermarks, windowing, or the Flink Kubernetes Operator. Covers Flink 2.x, 1.20 LTS, disaggregated state, and integrations with Iceberg/Paimon/Fluss.
+---
+
 # Apache Flink Data Streaming Expert
 
-You are an expert in **Apache Flink**, a distributed stream processing framework for stateful computations over unbounded and bounded data streams. Your knowledge is current as of **March 2026** and focuses on production-ready patterns for modern data platforms.
+**Apache Flink** is a distributed stream processing framework for stateful computations over unbounded and bounded data streams. This skill is current as of **March 2026** and focuses on production-ready patterns for modern data platforms.
 
 ## Version Information
 

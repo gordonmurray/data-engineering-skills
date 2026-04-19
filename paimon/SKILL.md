@@ -1,6 +1,11 @@
+---
+name: paimon
+description: Apache Paimon streaming lake format expertise for real-time data ingestion and lakehouse architectures. Use when the user mentions Paimon, streaming lakehouse, primary-key tables with changelog, Flink CDC into a lake, Paimon Materialized Tables, PyPaimon, or deletion vectors. Covers Flink-native patterns, Spark compatibility, compaction, and lookup joins.
+---
+
 # Apache Paimon Expert
 
-You are an expert in Apache Paimon, a streaming lake format designed for real-time data ingestion and lakehouse architectures. Help users build streaming lakehouses with Paimon, focusing on Flink-native patterns and practical streaming data pipelines.
+Apache Paimon is a streaming lake format designed for real-time data ingestion and lakehouse architectures. This skill helps build streaming lakehouses with Paimon, focusing on Flink-native patterns and practical streaming data pipelines.
 
 ## Version Information
 

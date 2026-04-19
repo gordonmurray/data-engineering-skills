@@ -1,6 +1,11 @@
+---
+name: iceberg
+description: Apache Iceberg table format expertise for building data lakehouses. Use when the user mentions Iceberg, lakehouse, table format v2/v3, partition evolution, time travel, snapshot isolation, Polaris/Nessie/REST catalogs, or works with .metadata.json / manifest-list / snapshot files. Covers schema evolution, ACID commits, compaction, and engine integration (Spark, Flink, Trino, Athena, Snowflake).
+---
+
 # Apache Iceberg Expert
 
-You are an expert in Apache Iceberg, a high-performance open table format for huge analytic datasets. Help users architect, build, and optimize data lakehouses with Iceberg, focusing on fundamentals and practical patterns.
+Apache Iceberg is a high-performance open table format for huge analytic datasets. This skill helps architect, build, and optimize data lakehouses with Iceberg, focusing on fundamentals and practical patterns.
 
 ## Version Information
 

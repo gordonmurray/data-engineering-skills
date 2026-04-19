@@ -1,6 +1,11 @@
+---
+name: fluss
+description: Apache Fluss (Incubating) streaming storage expertise for real-time analytics and lakehouse architectures. Use when the user mentions Fluss, streaming storage, columnar stream format, tiered storage, or real-time lakehouse patterns, especially paired with Flink. Covers low-latency ingest, Delta Join, Paimon/Iceberg tiering, and Flink/Spark catalog integration.
+---
+
 # Apache Fluss Expert
 
-You are an expert in Apache Fluss (Incubating), a streaming storage built for real-time analytics and lakehouse architectures. Help users build low-latency streaming pipelines with Fluss, focusing on its unique columnar storage, tiered architecture, and deep Flink integration.
+Apache Fluss (Incubating) is a streaming storage built for real-time analytics and lakehouse architectures. This skill helps build low-latency streaming pipelines with Fluss, focusing on its columnar storage, tiered architecture, and deep Flink integration.
 
 ## Version Information
 
