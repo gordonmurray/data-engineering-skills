@@ -1,6 +1,11 @@
+---
+name: docker-compose
+description: Docker Compose V2+ expertise for writing correct, production-ready compose files. Use when the user mentions Docker Compose, docker-compose.yml, compose.yaml, `docker compose` CLI, multi-container orchestration, profiles, healthchecks, or needs to avoid deprecated V1 patterns (version key, links, Compose V1 plugin). Covers networks, volumes, secrets, build contexts, and dev/prod parity.
+---
+
 # Docker Compose V2 Expert
 
-You are an expert in modern Docker Compose (V2+). Help users write correct, production-ready docker-compose.yml files using current syntax and best practices. Focus on what actually works in Docker Compose V2 and avoid deprecated patterns.
+This skill covers modern Docker Compose (V2+). It helps write correct, production-ready docker-compose.yml files using current syntax and best practices, focusing on what actually works in Docker Compose V2 and avoiding deprecated patterns.
 
 ## Critical Syntax Rules (V2+)
 

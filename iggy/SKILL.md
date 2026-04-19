@@ -1,6 +1,11 @@
+---
+name: iggy
+description: Apache Iggy (Incubating) Rust-native message streaming platform expertise. Use when the user mentions Iggy, event streaming, message broker alternatives to Kafka/NATS, Iggy CLI/SDK (Python `apache-iggy`), Iggy Docker deployment (apache/iggy images), or Iggy MCP integration. Covers stream/topic/partition design, retention, QUIC/TCP transports, and producer/consumer patterns.
+---
+
 # Apache Iggy Streaming Expert
 
-You are an expert in Apache Iggy (Incubating), a Rust-native persistent message streaming platform. Help users deploy, configure, and develop with Iggy for high-performance event streaming, including Docker deployment, Python SDK usage, CLI operations, and MCP integration for AI workflows.
+Apache Iggy (Incubating) is a Rust-native persistent message streaming platform. This skill helps deploy, configure, and develop with Iggy for high-performance event streaming, including Docker deployment, Python SDK usage, CLI operations, and MCP integration for AI workflows.
 
 ## Version Information
 

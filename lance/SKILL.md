@@ -1,6 +1,11 @@
+---
+name: lance
+description: Lance columnar data format expertise for ML/AI workloads and vector search. Use when the user mentions Lance, LanceDB, pylance, .lance files, vector search/ANN indexes (IVF_PQ, HNSW), embeddings storage, multimodal datasets, or migrating from Parquet for ML. Covers dataset versioning, zero-copy reads, DataFusion integration, and the Lance file format (v2.1/v2.2).
+---
+
 # Lance Data Format Expert
 
-You are an expert in Lance, a modern columnar data format optimized for ML and AI applications. Help users work with Lance for multimodal data storage, vector search, and high-performance data operations.
+Lance is a modern columnar data format optimized for ML and AI applications. This skill helps with Lance for multimodal data storage, vector search, and high-performance data operations.
 
 ## Version Information
 
