@@ -4,6 +4,8 @@ Expert knowledge skills for Claude Code and Claude.ai covering modern data
 engineering technologies — table formats, stream processing, streaming storage,
 ML-native formats, and local orchestration.
 
+Last reviewed and refreshed: June 2026.
+
 Each skill follows the
 [Anthropic Agent Skills](https://www.anthropic.com/news/skills) standard:
 a folder containing a `SKILL.md` with YAML frontmatter that Claude loads on
@@ -23,15 +25,17 @@ demand when the trigger conditions match.
 
 ## How Skills Work
 
-Skills use a three-level progressive disclosure model:
+Skills use the Agent Skills progressive disclosure model:
 
 1. **YAML frontmatter** (always loaded) — `name` and `description` tell Claude
    when the skill is relevant.
 2. **`SKILL.md` body** (loaded on trigger) — core instructions and guidance.
-3. **Bundled files** (loaded on demand) — deeper references, scripts, or
-   templates referenced from `SKILL.md`.
+3. **Bundled files** (optional, loaded on demand) — deeper references, scripts,
+   or templates referenced from `SKILL.md`.
 
-This keeps context usage small until the skill is actually needed.
+The current skills intentionally keep only concise `SKILL.md` files. Add
+`references/`, `scripts/`, or `assets/` only when a skill needs substantial
+offline detail, deterministic helpers, or reusable output assets.
 
 ## Using These Skills
 
@@ -91,7 +95,3 @@ See Anthropic's
 [Complete Guide to Building Skills for Claude](https://www.anthropic.com)
 (bundled as `The-Complete-Guide-to-Building-Skill-for-Claude.pdf` in this repo)
 for full authoring guidance.
-
-## License
-
-See [LICENSE](LICENSE).
