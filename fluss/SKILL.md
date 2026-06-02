@@ -21,7 +21,6 @@ Use this skill for Fluss table design, low-latency stream storage, Flink integra
 1. Determine whether the table should be a log table or primary-key table.
 2. Determine hot/cold architecture: Fluss only, Fluss tiered to Paimon, Fluss tiered to Iceberg, or Lance-oriented AI/vector ingestion.
 3. For Flink jobs, align Fluss connector, Flink version, and CDC version before writing examples.
-4. For deeper SQL/YAML examples and operational notes, consult [full-reference.md](references/full-reference.md). Treat older version values there as historical if they conflict with this file.
 
 ## Design Rules
 
@@ -35,4 +34,3 @@ Use this skill for Fluss table design, low-latency stream storage, Flink integra
 
 - Recheck Fluss downloads before changing stable versions.
 - Recheck client SDK maturity before recommending Python/C++/Rust client use in production.
-- Keep this `SKILL.md` concise; move long examples to `references/`.

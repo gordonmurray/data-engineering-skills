@@ -21,7 +21,6 @@ Use this skill to design, debug, and optimize Lance and LanceDB systems for ML-n
 1. Identify whether the user is asking about **Lance format** (`pylance`, `.lance`, dataset versioning, storage layout) or **LanceDB** (`lancedb`, tables, search, indexes, reranking).
 2. Prefer current stable versions unless the user explicitly asks about beta features.
 3. For API examples, keep snippets small and verify names against installed docs/source when working inside a project.
-4. For deeper examples and operational patterns, consult [full-reference.md](references/full-reference.md). Treat its older version notes as historical if they conflict with this file.
 
 ## Common Guidance
 
@@ -37,4 +36,3 @@ Use this skill to design, debug, and optimize Lance and LanceDB systems for ML-n
 
 - Confirm latest `lance-format/lance` release before changing SDK guidance.
 - Confirm latest stable `lancedb` release on PyPI before changing Python guidance.
-- Keep this `SKILL.md` concise; move long examples to `references/`.

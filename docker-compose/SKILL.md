@@ -22,7 +22,6 @@ Use this skill to write, review, and modernize Docker Compose files using the cu
 2. Add only the networks, volumes, secrets, configs, profiles, and build settings required for the user’s workflow.
 3. Use healthchecks plus long-form `depends_on` when startup readiness matters.
 4. Bind sensitive ports to `127.0.0.1` unless external access is required.
-5. For deeper templates and examples, consult [full-reference.md](references/full-reference.md). Treat older image tags there as examples to refresh before use.
 
 ## Review Checklist
 
@@ -48,4 +47,3 @@ Use this skill to write, review, and modernize Docker Compose files using the cu
 
 - Recheck Docker Compose docs for newly added keys such as `develop`, `interface_name`, or pull policy support before recommending them.
 - Recheck upstream image tags before refreshing examples.
-- Keep this `SKILL.md` concise; move long templates to `references/`.
