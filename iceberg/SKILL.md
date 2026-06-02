@@ -22,7 +22,6 @@ Use this skill for Iceberg table design, engine integration, catalog choice, sch
 1. Identify the engine and catalog first; Iceberg behavior varies across Spark, Flink, Trino, Athena, Snowflake, REST, Glue, Hive, Nessie, and Polaris.
 2. Choose format v2 for maximum compatibility; choose v3 only when all critical engines support required v3 features.
 3. For maintenance requests, inspect snapshot retention, orphan file risk, manifest counts, delete files/deletion vectors, and small-file patterns.
-4. For deeper SQL/API examples, consult [full-reference.md](references/full-reference.md). Treat older version values there as historical if they conflict with this file.
 
 ## Design Rules
 
@@ -38,4 +37,3 @@ Use this skill for Iceberg table design, engine integration, catalog choice, sch
 - Recheck Apache Iceberg releases before changing library/runtime versions.
 - Recheck the spec page before changing format-version wording.
 - Recheck engine-specific v3 support before making upgrade recommendations.
-- Keep this `SKILL.md` concise; move long examples to `references/`.

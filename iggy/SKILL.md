@@ -21,7 +21,6 @@ Use this skill for Iggy deployment, stream/topic design, producer and consumer p
 1. Determine deployment mode: local binary, Docker, Compose, Kubernetes/Helm, or SDK-only client work.
 2. Determine transport: TCP for throughput, QUIC for latency, HTTP for REST/admin, WebSocket for browser-compatible clients.
 3. For Python, verify the installed `apache-iggy` package API before writing detailed code; async-only API details changed quickly across 0.7/0.8.
-4. For deeper examples and known gotchas, consult [full-reference.md](references/full-reference.md). Treat older version values there as historical if they conflict with this file.
 
 ## Deployment Rules
 
@@ -35,4 +34,3 @@ Use this skill for Iggy deployment, stream/topic design, producer and consumer p
 
 - Recheck Iggy downloads for latest incubating source release.
 - Recheck SDK package versions separately; server, Rust, Python, Java, Go, C#, and Web UI versions may differ.
-- Keep this `SKILL.md` concise; move long SDK examples to `references/`.

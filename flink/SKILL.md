@@ -30,7 +30,6 @@ Use this skill for production Flink architecture, operations, SQL/DataStream imp
 1. Classify the request: SQL/Table API, DataStream, deployment, operations, upgrade, CDC, or lakehouse sink/source.
 2. For new greenfield work, prefer Flink 2.2.x plus current connector artifacts.
 3. For migration work, identify the exact source version, connector versions, state backend, and savepoint strategy before recommending commands.
-4. For deeper examples, consult [full-reference.md](references/full-reference.md). Treat older version values there as historical if they conflict with this file.
 
 ## Production Defaults
 
@@ -45,4 +44,3 @@ Use this skill for production Flink architecture, operations, SQL/DataStream imp
 
 - Recheck Flink downloads for core, CDC, connector, and Kubernetes Operator versions.
 - Update Helm/doc URLs when operator versions change.
-- Keep this `SKILL.md` concise; move long SQL, Java, and YAML examples to `references/`.

@@ -21,7 +21,6 @@ Use this skill for Paimon table design, Flink-native streaming ingestion, change
 1. Determine table type first: append-only table or primary-key table.
 2. Determine workload: streaming ingest, CDC upsert, lookup dimension table, batch analytics, or cross-format Iceberg exposure.
 3. Choose bucket strategy early; bucket count affects write parallelism, small files, and lookup performance.
-4. For deeper SQL/API examples and operational patterns, consult [full-reference.md](references/full-reference.md). Treat older version values there as historical if they conflict with this file.
 
 ## Design Rules
 
@@ -36,4 +35,3 @@ Use this skill for Paimon table design, Flink-native streaming ingestion, change
 
 - Recheck Apache Paimon tags/downloads and PyPI `pypaimon` before changing versions.
 - Recheck Flink CDC compatibility for the selected Flink and Paimon releases.
-- Keep this `SKILL.md` concise; move long DDL and migration examples to `references/`.
