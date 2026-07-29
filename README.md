@@ -4,10 +4,10 @@ Expert knowledge skills for Claude Code and Claude.ai covering modern data
 engineering technologies — table formats, stream processing, streaming storage,
 ML-native formats, and local orchestration.
 
-Last reviewed and refreshed: June 2026.
+Last reviewed and refreshed: July 2026.
 
 Each skill follows the
-[Anthropic Agent Skills](https://www.anthropic.com/news/skills) standard:
+[Anthropic Agent Skills](https://claude.com/blog/skills) standard:
 a folder containing a `SKILL.md` with YAML frontmatter that Claude loads on
 demand when the trigger conditions match.
 
@@ -58,8 +58,8 @@ Zip a skill folder and upload via **Settings → Capabilities → Skills**.
 ### Claude API
 
 Pass the skill via `container.skills` on the Messages API (requires the Code
-Execution Tool beta). See the
-[Skills API Quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills).
+Execution Tool beta). See
+[Using Agent Skills with the API](https://platform.claude.com/docs/en/build-with-claude/skills-guide).
 
 ## Skill Structure
 
@@ -91,7 +91,9 @@ To add a new skill:
    executable helpers to `scripts/` within the skill folder.
 4. Update the table above.
 
-See Anthropic's
-[Complete Guide to Building Skills for Claude](https://www.anthropic.com)
-(bundled as `The-Complete-Guide-to-Building-Skill-for-Claude.pdf` in this repo)
-for full authoring guidance.
+For full authoring guidance, see Anthropic's
+[Complete Guide to Building Skills for Claude][guide] (PDF, ~33 pages) and the
+[Skill authoring best practices][best-practices] documentation.
+
+[guide]: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+[best-practices]: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
