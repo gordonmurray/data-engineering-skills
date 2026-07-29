@@ -1,11 +1,19 @@
 ---
 name: docker-compose
-description: Docker Compose V2 and Compose Specification expertise for writing correct compose.yaml and docker-compose.yml files. Use when the user mentions Docker Compose, compose.yaml, docker-compose.yml, docker compose CLI, multi-container apps, profiles, healthchecks, depends_on, networks, volumes, secrets, build contexts, or avoiding deprecated V1 patterns.
+description: Write, review, and modernize Docker Compose files against the current Compose Specification and the docker compose V2 CLI. Use for authoring compose.yaml or docker-compose.yml, service dependency and healthcheck ordering, profiles, networks, volumes, secrets and configs, build contexts, migrating off V1 and the obsolete version key, or containers that fail to start, restart-loop, report unhealthy, or lose data between runs.
+license: MIT
 ---
 
 # Docker Compose V2 Expert
 
-Use this skill to write, review, and modernize Docker Compose files using the current Compose Specification and `docker compose` V2 CLI.
+## Scope
+
+Writing, reviewing, and modernizing Compose files using the current Compose
+Specification and the `docker compose` V2 CLI, plus local multi-container
+workflows.
+
+Not a Kubernetes or Swarm skill. When a user needs production orchestration,
+say so rather than stretching Compose to fit.
 
 ## Current Facts
 
@@ -16,12 +24,34 @@ Use this skill to write, review, and modernize Docker Compose files using the cu
 - Root-level keys commonly include `services`, `networks`, `volumes`, `configs`, and `secrets`.
 - Current example image majors as of June 2026: PostgreSQL 18 and Redis 8. Pin exact patch/minor versions for production.
 
-## How To Use
+## Inspect First
 
-1. Start with `services:` and no `version:` field.
-2. Add only the networks, volumes, secrets, configs, profiles, and build settings required for the user’s workflow.
-3. Use healthchecks plus long-form `depends_on` when startup readiness matters.
-4. Bind sensitive ports to `127.0.0.1` unless external access is required.
+Establish before recommending or changing anything:
+
+1. Read the existing Compose file in full before editing. Preserve service
+   names, networks, and volumes the user already depends on.
+2. Confirm Compose V2 is in use via `docker compose version`, not the
+   standalone V1 binary.
+3. Identify which services hold persistent state and which ports are currently
+   published to the host.
+4. For startup failures, read `docker compose ps` and the actual container
+   logs before changing configuration. Most restart loops are an application
+   error, not a Compose error.
+
+## Authoring Rules
+
+- Start with `services:` and no `version:` field.
+- Add only the networks, volumes, secrets, configs, profiles, and build
+  settings the workflow actually needs.
+- Use healthchecks plus long-form `depends_on` with `condition:
+  service_healthy` when startup order matters. Plain `depends_on` waits for
+  the container to start, not for the service to be ready.
+- Bind sensitive ports to `127.0.0.1` unless external access is required.
+- Keep internal databases on a backend network with no host port published.
+- Use `profiles` for optional services such as observability, admin tools, or
+  one-off jobs.
+- Use `postgres:18-alpine` and `redis:8-alpine` for current examples unless
+  project requirements say otherwise.
 
 ## Review Checklist
 
@@ -35,13 +65,30 @@ Use this skill to write, review, and modernize Docker Compose files using the cu
 - Healthchecks use commands available inside the image.
 - Resource limits are explicit where runaway memory/CPU use is risky.
 
-## Common Patterns
+## Safety
 
-- PostgreSQL: use `postgres:18-alpine` for current examples unless project requirements say otherwise.
-- Redis: use `redis:8-alpine` for current examples unless project requirements say otherwise.
-- Internal databases should usually live only on a backend network and avoid host port exposure.
-- Use `profiles` for optional services such as observability, admin tools, or one-off jobs.
-- Use `docker compose config` to validate rendered configuration.
+- `docker compose down -v` deletes named volumes and everything in them. Never
+  offer it as a generic reset without stating that database contents will be
+  destroyed, and confirm first.
+- A bare `5432:5432` publishes the database on every host interface. Use
+  `127.0.0.1:5432:5432` unless remote access is genuinely required.
+- Keep secrets out of committed YAML and never echo secret values into output
+  or logs.
+- Renaming a named volume silently orphans the old data rather than migrating
+  it. Confirm before changing volume definitions on a running stack.
+
+## Verify
+
+- Run `docker compose config` to confirm the file parses and to inspect the
+  rendered result, including variable interpolation.
+- Bring the stack up and confirm `docker compose ps` reports the expected
+  services as healthy, not merely running.
+- Confirm each healthcheck command exists inside its image. A healthcheck
+  calling `curl` in an image without curl reports unhealthy forever.
+- For stateful services, confirm data survives `docker compose down` followed
+  by `docker compose up`.
+- Report which services you started, their health status, and anything you
+  could not test.
 
 ## Update Checklist
 

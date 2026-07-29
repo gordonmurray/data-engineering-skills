@@ -1,11 +1,19 @@
 ---
 name: paimon
-description: Apache Paimon streaming lake format expertise for real-time ingestion and lakehouse architectures. Use when the user mentions Paimon, streaming lakehouse, primary-key tables, changelog, Flink CDC into a lake, Paimon Materialized Tables, PyPaimon, deletion vectors, lookup joins, buckets, compaction, or Spark/Flink Paimon tables.
+description: Design, ingest into, tune, and operate Apache Paimon tables for streaming lakehouses. Use for Paimon primary-key or append-only table design, bucket sizing, changelog producer choice, Flink CDC ingestion, compaction backlog, lookup join performance, PyPaimon, Spark reads, Iceberg compatibility, or streaming writes that produce too many small files.
+license: MIT
 ---
 
 # Apache Paimon Expert
 
-Use this skill for Paimon table design, Flink-native streaming ingestion, changelog semantics, compaction, lookup joins, Spark reads, and Iceberg compatibility.
+## Scope
+
+Paimon table design, Flink-native streaming ingestion, changelog semantics,
+compaction, lookup joins, Spark reads, and Iceberg compatibility.
+
+For Flink job architecture and operations use the `flink` skill. For Iceberg
+table internals use `iceberg`; this skill covers Paimon's Iceberg compatibility
+mode, not Iceberg itself.
 
 ## Current Facts
 
@@ -16,20 +24,56 @@ Use this skill for Paimon table design, Flink-native streaming ingestion, change
 - **Recommended Spark:** verify against the Paimon connector matrix for the selected Paimon version; do not hard-code Spark 3.4.3 for new projects without checking.
 - **Recent focus areas:** PyPaimon, data evolution, Iceberg compatibility, deletion vectors, REST Catalog authorization interfaces, lookup join performance, multimodal/blob storage, and Paimon/Lance integration work.
 
-## How To Use
+## Inspect First
 
-1. Determine table type first: append-only table or primary-key table.
-2. Determine workload: streaming ingest, CDC upsert, lookup dimension table, batch analytics, or cross-format Iceberg exposure.
-3. Choose bucket strategy early; bucket count affects write parallelism, small files, and lookup performance.
+Establish before recommending or changing anything:
 
-## Design Rules
+1. Table type, bucket mode, and bucket count, from the DDL or `DESCRIBE`.
+   Primary-key and append-only tables behave differently under every subsequent
+   decision.
+2. Paimon, Flink, and Flink CDC versions actually in use.
+3. The current changelog producer setting, and whether any downstream consumer
+   reads changelog at all.
+4. For performance work, read the `$files`, `$snapshots`, `$manifests`, and
+   `$options` system tables. Get file count per bucket, average file size,
+   compaction backlog, and snapshot expiry settings rather than assuming.
 
-- Use primary-key tables for upserts, deletes, and CDC; use append-only tables for immutable event logs.
-- Include partition fields in primary keys when tables are partitioned.
-- Avoid single-bucket defaults for large tables; choose fixed or dynamic buckets deliberately.
-- Use changelog producer settings based on downstream needs: `input`, `lookup`, `full-compaction`, or none.
-- Plan compaction separately from ingestion for high-volume streaming tables.
-- Use lookup cache only when dimension-table size and freshness requirements justify it.
+## Decision Rules
+
+- Include partition fields in the primary key when the table is partitioned.
+- Size buckets up front. Changing the bucket count of a fixed-bucket table
+  requires rewriting existing data, so choose against expected volume rather
+  than accepting the default.
+- Choose the changelog producer from real downstream need: `none` when nothing
+  consumes changelog, `input` when the source already emits a complete
+  changelog, and `lookup` or `full-compaction` when it must be generated. The
+  last two carry real write-side cost.
+- Run compaction as a dedicated job for high-volume streaming tables so
+  compaction cannot backpressure ingestion.
+- Use lookup cache only when the dimension table fits in memory and the
+  staleness it introduces is acceptable.
+
+## Safety
+
+- Changing bucket count, primary key, or partition spec on an existing table
+  requires a data rewrite. State the data volume and expected duration before
+  proposing it.
+- Snapshot expiry deletes files that time travel and lagging streaming
+  consumers still need. Check consumer lag before shortening retention.
+- Do not drop and recreate a table to resolve a schema problem that schema
+  evolution can handle; recreating discards snapshot history.
+- Keep REST catalog and object storage credentials out of table properties and
+  out of SQL committed to the repository.
+
+## Verify
+
+- After an ingestion change, confirm the snapshot count is advancing and the
+  commit interval matches expectation.
+- After compaction or bucket changes, compare file count and average file size
+  per bucket via `$files`.
+- For CDC pipelines, check row counts and a sample of updated and deleted keys
+  against the source. A running job is not evidence of correct output.
+- Report the Paimon and Flink versions and which system tables you read.
 
 ## Update Checklist
 
