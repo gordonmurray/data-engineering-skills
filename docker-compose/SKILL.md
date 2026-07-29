@@ -1,27 +1,72 @@
 ---
 name: docker-compose
-description: Docker Compose V2 and Compose Specification expertise for writing correct compose.yaml and docker-compose.yml files. Use when the user mentions Docker Compose, compose.yaml, docker-compose.yml, docker compose CLI, multi-container apps, profiles, healthchecks, depends_on, networks, volumes, secrets, build contexts, or avoiding deprecated V1 patterns.
+description: Write, review, and modernize Docker Compose files against the current Compose Specification and the docker compose CLI. Use for authoring compose.yaml or docker-compose.yml, service dependency and healthcheck ordering, profiles, networks, volumes, secrets and configs, build contexts, migrating off V1 and the obsolete version key, or containers that fail to start, restart-loop, report unhealthy, or lose data between runs.
+license: MIT
 ---
 
-# Docker Compose V2 Expert
+# Docker Compose Expert
 
-Use this skill to write, review, and modernize Docker Compose files using the current Compose Specification and `docker compose` V2 CLI.
+## Scope
+
+Writing, reviewing, and modernizing Compose files using the current Compose
+Specification and the `docker compose` CLI, plus local multi-container
+workflows.
+
+Not a Kubernetes or Swarm skill. When a user needs production orchestration,
+say so rather than stretching Compose to fit.
 
 ## Current Facts
 
+- **Supported CLI lines are Compose v2 and Compose v5**, both defined by the Compose Specification. Current release is v5.3.1, July 7, 2026. Docker skipped 3.x and 4.x deliberately, to avoid confusion with the obsolete v1 file-format versions 2.x and 3.x.
 - The top-level `version` property is obsolete. Compose keeps it only for backward compatibility and warns when it is used.
 - Compose validates against the most recent schema regardless of `version`.
-- Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment.
-- Default file names are `compose.yaml` and `compose.yml`; `docker-compose.yml` remains widely supported.
-- Root-level keys commonly include `services`, `networks`, `volumes`, `configs`, and `secrets`.
-- Current example image majors as of June 2026: PostgreSQL 18 and Redis 8. Pin exact patch/minor versions for production.
+- Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment. V1 reached end of life in June 2023.
+- Default file names are `compose.yaml` (preferred) and `compose.yml`; `docker-compose.yaml` and `docker-compose.yml` remain supported. Compose prefers `compose.yaml` when both exist.
+- Top-level keys are `version`, `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`.
+- **Recent additions gated on a CLI version:** service-level `pre_start` for native init containers needs v5.3.0 (July 2026); `build.no_cache_filter` and `docker compose start --wait` need v5.0.0. None of these are available on Compose v2.
+- `restart` accepts `no`, `always`, `on-failure[:max-retries]`, and `unless-stopped`, with no version gate on any of them. The `on-failure` retry limit is long-standing; its spec wording was clarified in February 2026, which is not the same as being new.
+- Compose v5.0.0 removed the internal BuildKit builder and delegates builds to Docker Bake, the same path as `docker build`.
+- Current example image majors as of July 2026: PostgreSQL 18 (18.4) and Redis 8 (8.8.1). Pin exact patch/minor versions for production.
 
-## How To Use
+## Inspect First
 
-1. Start with `services:` and no `version:` field.
-2. Add only the networks, volumes, secrets, configs, profiles, and build settings required for the user’s workflow.
-3. Use healthchecks plus long-form `depends_on` when startup readiness matters.
-4. Bind sensitive ports to `127.0.0.1` unless external access is required.
+Establish before recommending or changing anything:
+
+1. Read the existing Compose file in full before editing. Preserve service
+   names, networks, and volumes the user already depends on.
+2. Read the CLI version from `docker compose version`, and confirm it is not
+   the standalone V1 binary. The version gates which keys are available:
+   `pre_start` needs v5.3.0 or newer.
+3. Identify which services hold persistent state and which ports are currently
+   published to the host.
+4. For startup failures, read `docker compose ps` and the actual container
+   logs before changing configuration. Most restart loops are an application
+   error, not a Compose error.
+
+## Authoring Rules
+
+- Start with `services:` and no `version:` field.
+- Add only the networks, volumes, secrets, configs, profiles, and build
+  settings the workflow actually needs.
+- Use healthchecks plus long-form `depends_on` with `condition:
+  service_healthy` when startup order matters. Plain `depends_on` waits for
+  the container to start, not for the service to be ready.
+- Bind sensitive ports to `127.0.0.1` unless external access is required.
+- Keep internal databases on a backend network with no host port published.
+- Check the CLI version before using any recently added key. Both v2 and v5 are
+  supported lines, and a v5-only key silently produces an invalid file for a v2
+  user.
+- For migrations, permission fixes, and other init work on **Compose v5.3.0 or
+  newer**, use service-level `pre_start`. Each step runs in an ephemeral
+  container before the service starts, in declared order, and a non-zero exit
+  fails the service and its dependents. This differs from `post_start` and
+  `pre_stop`, which run inside the running service container.
+- On Compose v2, `pre_start` does not exist. Use a one-shot init service plus
+  `depends_on: {init: {condition: service_completed_successfully}}` instead.
+- Use `profiles` for optional services such as observability, admin tools, or
+  one-off jobs.
+- Use `postgres:18-alpine` and `redis:8-alpine` for current examples unless
+  project requirements say otherwise.
 
 ## Review Checklist
 
@@ -35,15 +80,32 @@ Use this skill to write, review, and modernize Docker Compose files using the cu
 - Healthchecks use commands available inside the image.
 - Resource limits are explicit where runaway memory/CPU use is risky.
 
-## Common Patterns
+## Safety
 
-- PostgreSQL: use `postgres:18-alpine` for current examples unless project requirements say otherwise.
-- Redis: use `redis:8-alpine` for current examples unless project requirements say otherwise.
-- Internal databases should usually live only on a backend network and avoid host port exposure.
-- Use `profiles` for optional services such as observability, admin tools, or one-off jobs.
-- Use `docker compose config` to validate rendered configuration.
+- `docker compose down -v` deletes named volumes and everything in them. Never
+  offer it as a generic reset without stating that database contents will be
+  destroyed, and confirm first.
+- A bare `5432:5432` publishes the database on every host interface. Use
+  `127.0.0.1:5432:5432` unless remote access is genuinely required.
+- Keep secrets out of committed YAML and never echo secret values into output
+  or logs.
+- Renaming a named volume silently orphans the old data rather than migrating
+  it. Confirm before changing volume definitions on a running stack.
+
+## Verify
+
+- Run `docker compose config` to confirm the file parses and to inspect the
+  rendered result, including variable interpolation.
+- Bring the stack up and confirm `docker compose ps` reports the expected
+  services as healthy, not merely running.
+- Confirm each healthcheck command exists inside its image. A healthcheck
+  calling `curl` in an image without curl reports unhealthy forever.
+- For stateful services, confirm data survives `docker compose down` followed
+  by `docker compose up`.
+- Report which services you started, their health status, and anything you
+  could not test.
 
 ## Update Checklist
 
-- Recheck Docker Compose docs for newly added keys such as `develop`, `interface_name`, or pull policy support before recommending them.
+- Recheck Docker Compose docs for newly added keys before recommending them, for example `develop`, `pre_start`, or the service-level `networks.<name>.interface_name`.
 - Recheck upstream image tags before refreshing examples.

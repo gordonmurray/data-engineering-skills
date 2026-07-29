@@ -1,13 +1,11 @@
 # Data Engineering Skills for Claude
 
 Expert knowledge skills for Claude Code and Claude.ai covering modern data
-engineering technologies — table formats, stream processing, streaming storage,
+engineering technologies: table formats, stream processing, streaming storage,
 ML-native formats, and local orchestration.
 
-Last reviewed and refreshed: June 2026.
-
 Each skill follows the
-[Anthropic Agent Skills](https://www.anthropic.com/news/skills) standard:
+[Anthropic Agent Skills](https://claude.com/blog/skills) standard:
 a folder containing a `SKILL.md` with YAML frontmatter that Claude loads on
 demand when the trigger conditions match.
 
@@ -21,16 +19,17 @@ demand when the trigger conditions match.
 | **Apache Flink** | Stream processing framework | [`flink/SKILL.md`](flink/SKILL.md) |
 | **Apache Iggy** | Rust-native message streaming | [`iggy/SKILL.md`](iggy/SKILL.md) |
 | **Lance** | Columnar format for ML/AI + vector search | [`lance/SKILL.md`](lance/SKILL.md) |
-| **Docker Compose** | Container orchestration (V2+) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
+| **Firn** | Object-storage-backed vector and full-text search | [`firn/SKILL.md`](firn/SKILL.md) |
+| **Docker Compose** | Container orchestration (v2 and v5) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
 
 ## How Skills Work
 
 Skills use the Agent Skills progressive disclosure model:
 
-1. **YAML frontmatter** (always loaded) — `name` and `description` tell Claude
+1. **YAML frontmatter** (always loaded). `name` and `description` tell Claude
    when the skill is relevant.
-2. **`SKILL.md` body** (loaded on trigger) — core instructions and guidance.
-3. **Bundled files** (optional, loaded on demand) — deeper references, scripts,
+2. **`SKILL.md` body** (loaded on trigger). Core instructions and guidance.
+3. **Bundled files** (optional, loaded on demand). Deeper references, scripts,
    or templates referenced from `SKILL.md`.
 
 The current skills intentionally keep only concise `SKILL.md` files. Add
@@ -58,8 +57,8 @@ Zip a skill folder and upload via **Settings → Capabilities → Skills**.
 ### Claude API
 
 Pass the skill via `container.skills` on the Messages API (requires the Code
-Execution Tool beta). See the
-[Skills API Quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills).
+Execution Tool beta). See
+[Using Agent Skills with the API](https://platform.claude.com/docs/en/build-with-claude/skills-guide).
 
 ## Skill Structure
 
@@ -87,11 +86,29 @@ To add a new skill:
 2. Add a `SKILL.md` with valid YAML frontmatter (`name` matches the folder;
    `description` includes both *what it does* and *when to use it*, with
    specific trigger phrases).
-3. Keep `SKILL.md` focused; move deep reference material to `references/` and
+3. Cover the required sections: `Scope`, `Inspect First`, `Safety`, `Verify`,
+   and `Update Checklist`. These keep each skill an operating guide rather
+   than a reference article.
+4. Keep `SKILL.md` focused; move deep reference material to `references/` and
    executable helpers to `scripts/` within the skill folder.
-4. Update the table above.
+5. Update the table above.
 
-See Anthropic's
-[Complete Guide to Building Skills for Claude](https://www.anthropic.com)
-(bundled as `The-Complete-Guide-to-Building-Skill-for-Claude.pdf` in this repo)
-for full authoring guidance.
+Run the validator before opening a pull request:
+
+```bash
+pip install pyyaml
+python3 .github/scripts/validate_skills.py
+```
+
+It checks frontmatter validity, name and directory agreement, description
+length, required sections, file size, directory layout, relative links, and
+README coverage. A skill folder may contain only `SKILL.md` plus `references/`,
+`scripts/`, and `assets/`. CI runs the same script on every pull request,
+alongside a weekly link check.
+
+For full authoring guidance, see Anthropic's
+[Complete Guide to Building Skills for Claude][guide] (PDF, ~33 pages) and the
+[Skill authoring best practices][best-practices] documentation.
+
+[guide]: https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+[best-practices]: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices

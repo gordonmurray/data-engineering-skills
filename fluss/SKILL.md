@@ -1,34 +1,82 @@
 ---
 name: fluss
-description: Apache Fluss Incubating streaming storage expertise for real-time analytics, streamhouse and lakehouse architectures. Use when the user mentions Fluss, streaming storage, columnar streams, sub-second ingestion, tiered storage, Flink Delta Join, Paimon/Iceberg/Lance tiering, Spark access to streams, or Fluss table design.
+description: Design, deploy, and operate Apache Fluss streaming storage for sub-second real-time analytics. Use for Fluss log or primary-key table design, bucket sizing, tiering to Paimon, Iceberg, or Lance, Flink integration and Delta Join, $changelog and $binlog virtual tables, Spark access to streams, client SDK choice, or deciding between hot streaming storage and a lakehouse table.
+license: MIT
 ---
 
 # Apache Fluss Expert
 
-Use this skill for Fluss table design, low-latency stream storage, Flink integration, tiering to lakehouse formats, and operational planning.
+## Scope
+
+Fluss table design, low-latency stream storage, Flink integration, tiering to
+lakehouse formats, and operational planning.
+
+For the cold lakehouse side of a tiered architecture use the `paimon` or
+`iceberg` skills, and for Flink job internals use `flink`.
 
 ## Current Facts
 
-- **Current stable:** Apache Fluss 0.9.1.
-- **Status:** Apache Incubator project. Incubating releases are not yet fully endorsed ASF products.
+- **Current stable:** Apache Fluss 0.9.1, published May 4, 2026.
+- **Status:** graduated to a Top-Level Project at the ASF board meeting of July 15, 2026, with Jark Wu as inaugural chair. Release artifacts and Git tags still carry the `-incubating` suffix because 0.9.1 was cut before graduation, and the website plus incubator pages still lag. Graduation does not imply API stability; this remains pre-1.0.
 - **Important 0.9 line features:** Spark integration, complex nested types, zero-copy schema evolution, aggregation merge engine, auto-increment dictionary tables, `$changelog` and `$binlog` virtual tables, compacted log format, dynamic sink shuffle, KV snapshot leases, cluster rebalance, Azure Blob/ADLS Gen2 support, and Java Client POJO support.
 - **Clients:** Fluss Rust, Python, and C++ client 0.1.0 has been announced; do not describe Python SDK as only future roadmap.
 - **Flink CDC:** use current Flink CDC 3.6.0 guidance unless working in a pinned 3.5 environment.
-- **Docker examples:** prefer `fluss/fluss:0.9.1` for current stable examples.
+- **Docker images:** `apache/fluss:0.9.1-incubating`, and `apache/fluss-quickstart-flink:1.20-0.9.1-incubating` for the Flink quickstart. The `-incubating` suffix is part of the tag; a bare `0.9.1` tag does not exist and no `latest` tag is published, so pinning is mandatory. The old `fluss/fluss` Docker Hub repository is abandoned and has nothing newer than 0.7.0 from June 2025.
 
-## How To Use
+## Inspect First
 
-1. Determine whether the table should be a log table or primary-key table.
-2. Determine hot/cold architecture: Fluss only, Fluss tiered to Paimon, Fluss tiered to Iceberg, or Lance-oriented AI/vector ingestion.
-3. For Flink jobs, align Fluss connector, Flink version, and CDC version before writing examples.
+Establish before recommending or changing anything:
 
-## Design Rules
+1. Fluss version, and whether the deployment is a real cluster or a
+   single-node evaluation setup. Advice differs sharply between the two.
+2. Table type (log or primary-key), bucket count, and the tiering target if
+   one is configured.
+3. Flink version, Flink CDC version, and the Fluss connector version, before
+   writing any job code.
+4. For latency work, whether reads are being served from Fluss or from the
+   tiered lake, and how bucket count compares to consumer parallelism.
 
-- Use Fluss for hot, sub-second stream/table access; use Paimon/Iceberg for cold historical lakehouse storage.
-- Use log tables for append-only events and primary-key tables for mutable keyed state or CDC.
-- Size buckets for parallelism and avoid unnecessary small-file/tablet overhead.
-- Use `$changelog`/`$binlog` virtual tables for audit, replay, CDC, and ML reproducibility scenarios.
-- Use aggregation merge engine when pushing high-cardinality aggregate state into storage simplifies Flink state.
+## Decision Rules
+
+- Use Fluss for hot, sub-second stream and table access, and tier to Paimon or
+  Iceberg for cold history. Do not treat Fluss as the long-retention system of
+  record.
+- Use log tables for append-only events and primary-key tables for mutable
+  keyed state or CDC.
+- Size buckets against consumer parallelism. Too few caps read throughput, too
+  many adds small-file and tablet overhead.
+- Use `$changelog` and `$binlog` virtual tables for audit, replay, CDC, and ML
+  reproducibility rather than rebuilding that history downstream.
+- Use the aggregation merge engine when moving aggregate state into storage
+  measurably simplifies Flink state.
+- Pin exact versions, including the `-incubating` tag suffix. This is pre-1.0
+  and minor releases can break compatibility.
+
+## Safety
+
+- Fluss is now a Top-Level Project but is still pre-1.0. Confirm the user
+  accepts breaking changes between minor versions before recommending it for
+  production.
+- The Rust, Python, and C++ clients are at 0.1.0. Check maturity against the
+  workload before recommending them for production; the Java client is the
+  mature path.
+- Tiering settings determine what remains in hot storage. Confirm retention
+  before enabling or changing tiering, because data aged out of Fluss is
+  available only from the lake target.
+- Keep S3, Azure Blob, and ADLS Gen2 credentials out of table properties and
+  out of anything committed to a repository.
+
+## Verify
+
+- Confirm the tiering job is running and that the lake target actually receives
+  data, by reading the Paimon or Iceberg table directly rather than trusting
+  job status.
+- Measure end-to-end latency with a timestamped test record instead of quoting
+  the project's sub-second claim.
+- After bucket or schema changes, confirm existing consumers still read
+  successfully.
+- Report Fluss, Flink, and connector versions, and state plainly that Fluss is
+  pre-1.0 despite having graduated.
 
 ## Update Checklist
 
