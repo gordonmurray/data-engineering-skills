@@ -23,7 +23,8 @@ say so rather than stretching Compose to fit.
 - Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment. V1 reached end of life in June 2023.
 - Default file names are `compose.yaml` (preferred) and `compose.yml`; `docker-compose.yaml` and `docker-compose.yml` remain supported. Compose prefers `compose.yaml` when both exist.
 - Top-level keys are `version`, `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`.
-- **Recent additions, each gated on a CLI version:** service-level `pre_start` for native init containers needs v5.3.0 (July 2026); `build.no_cache_filter` and `docker compose start --wait` need v5.0.0; `restart: on-failure:<max-retries>` was added to the spec in February 2026. None are available on Compose v2.
+- **Recent additions gated on a CLI version:** service-level `pre_start` for native init containers needs v5.3.0 (July 2026); `build.no_cache_filter` and `docker compose start --wait` need v5.0.0. None of these are available on Compose v2.
+- `restart` accepts `no`, `always`, `on-failure[:max-retries]`, and `unless-stopped`, with no version gate on any of them. The `on-failure` retry limit is long-standing; its spec wording was clarified in February 2026, which is not the same as being new.
 - Compose v5.0.0 removed the internal BuildKit builder and delegates builds to Docker Bake, the same path as `docker build`.
 - Current example image majors as of July 2026: PostgreSQL 18 (18.4) and Redis 8 (8.8.1). Pin exact patch/minor versions for production.
 
