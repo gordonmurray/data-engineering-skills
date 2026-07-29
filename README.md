@@ -19,7 +19,8 @@ demand when the trigger conditions match.
 | **Apache Flink** | Stream processing framework | [`flink/SKILL.md`](flink/SKILL.md) |
 | **Apache Iggy** | Rust-native message streaming | [`iggy/SKILL.md`](iggy/SKILL.md) |
 | **Lance** | Columnar format for ML/AI + vector search | [`lance/SKILL.md`](lance/SKILL.md) |
-| **Docker Compose** | Container orchestration (V2+) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
+| **Firn** | Object-storage-backed vector and full-text search | [`firn/SKILL.md`](firn/SKILL.md) |
+| **Docker Compose** | Container orchestration (v2 and v5) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
 
 ## How Skills Work
 
