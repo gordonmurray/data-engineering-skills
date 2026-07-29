@@ -85,9 +85,23 @@ To add a new skill:
 2. Add a `SKILL.md` with valid YAML frontmatter (`name` matches the folder;
    `description` includes both *what it does* and *when to use it*, with
    specific trigger phrases).
-3. Keep `SKILL.md` focused; move deep reference material to `references/` and
+3. Cover the required sections: `Scope`, `Inspect First`, `Safety`, `Verify`,
+   and `Update Checklist`. These keep each skill an operating guide rather
+   than a reference article.
+4. Keep `SKILL.md` focused; move deep reference material to `references/` and
    executable helpers to `scripts/` within the skill folder.
-4. Update the table above.
+5. Update the table above.
+
+Run the validator before opening a pull request:
+
+```bash
+pip install pyyaml
+python3 .github/scripts/validate_skills.py
+```
+
+It checks frontmatter validity, name and directory agreement, description
+length, required sections, file size, relative links, and README coverage. CI
+runs the same script on every pull request, alongside a weekly link check.
 
 For full authoring guidance, see Anthropic's
 [Complete Guide to Building Skills for Claude][guide] (PDF, ~33 pages) and the
