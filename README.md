@@ -101,8 +101,10 @@ python3 .github/scripts/validate_skills.py
 ```
 
 It checks frontmatter validity, name and directory agreement, description
-length, required sections, file size, relative links, and README coverage. CI
-runs the same script on every pull request, alongside a weekly link check.
+length, required sections, file size, directory layout, relative links, and
+README coverage. A skill folder may contain only `SKILL.md` plus `references/`,
+`scripts/`, and `assets/`. CI runs the same script on every pull request,
+alongside a weekly link check.
 
 For full authoring guidance, see Anthropic's
 [Complete Guide to Building Skills for Claude][guide] (PDF, ~33 pages) and the

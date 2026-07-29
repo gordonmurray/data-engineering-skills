@@ -23,7 +23,7 @@ say so rather than stretching Compose to fit.
 - Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment. V1 reached end of life in June 2023.
 - Default file names are `compose.yaml` (preferred) and `compose.yml`; `docker-compose.yaml` and `docker-compose.yml` remain supported. Compose prefers `compose.yaml` when both exist.
 - Top-level keys are `version`, `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`.
-- **Recent additions:** service-level `pre_start` for native init containers, added in Compose v5.3.0 (July 2026); `restart: on-failure:<max-retries>`; `build.no_cache_filter`; and `docker compose start --wait`.
+- **Recent additions, each gated on a CLI version:** service-level `pre_start` for native init containers needs v5.3.0 (July 2026); `build.no_cache_filter` and `docker compose start --wait` need v5.0.0; `restart: on-failure:<max-retries>` was added to the spec in February 2026. None are available on Compose v2.
 - Compose v5.0.0 removed the internal BuildKit builder and delegates builds to Docker Bake, the same path as `docker build`.
 - Current example image majors as of July 2026: PostgreSQL 18 (18.4) and Redis 8 (8.8.1). Pin exact patch/minor versions for production.
 
@@ -33,8 +33,9 @@ Establish before recommending or changing anything:
 
 1. Read the existing Compose file in full before editing. Preserve service
    names, networks, and volumes the user already depends on.
-2. Confirm Compose V2 is in use via `docker compose version`, not the
-   standalone V1 binary.
+2. Read the CLI version from `docker compose version`, and confirm it is not
+   the standalone V1 binary. The version gates which keys are available:
+   `pre_start` needs v5.3.0 or newer.
 3. Identify which services hold persistent state and which ports are currently
    published to the host.
 4. For startup failures, read `docker compose ps` and the actual container
@@ -51,12 +52,16 @@ Establish before recommending or changing anything:
   the container to start, not for the service to be ready.
 - Bind sensitive ports to `127.0.0.1` unless external access is required.
 - Keep internal databases on a backend network with no host port published.
-- Use service-level `pre_start` for migrations, permission fixes, and other
-  init work, rather than the older pattern of a one-off service plus
-  `depends_on`. Each step runs in an ephemeral container before the service
-  starts, in declared order, and a non-zero exit fails the service and its
-  dependents. This differs from `post_start` and `pre_stop`, which run inside
-  the running service container.
+- Check the CLI version before using any recently added key. Both v2 and v5 are
+  supported lines, and a v5-only key silently produces an invalid file for a v2
+  user.
+- For migrations, permission fixes, and other init work on **Compose v5.3.0 or
+  newer**, use service-level `pre_start`. Each step runs in an ephemeral
+  container before the service starts, in declared order, and a non-zero exit
+  fails the service and its dependents. This differs from `post_start` and
+  `pre_stop`, which run inside the running service container.
+- On Compose v2, `pre_start` does not exist. Use a one-shot init service plus
+  `depends_on: {init: {condition: service_completed_successfully}}` instead.
 - Use `profiles` for optional services such as observability, admin tools, or
   one-off jobs.
 - Use `postgres:18-alpine` and `redis:8-alpine` for current examples unless

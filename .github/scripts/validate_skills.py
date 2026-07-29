@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Validate the skill catalogue against this repository's structural rules.
 
-Checks frontmatter validity, naming, required sections, file size, relative
-links, and README coverage. Run before opening a pull request:
+Checks frontmatter validity, naming, required sections, file size, directory
+layout, relative links, and README coverage. Run before opening a pull request:
 
     python3 .github/scripts/validate_skills.py
 
@@ -40,13 +40,12 @@ REQUIRED_SECTIONS = (
     "Update Checklist",
 )
 
-# Skill directories hold only resources the agent uses to perform the skill.
-BANNED_FILES = (
-    "README.md",
-    "CHANGELOG.md",
-    "QUICKSTART.md",
-    "INSTALLATION_GUIDE.md",
-)
+# A skill directory holds only resources the agent uses to perform the skill.
+# Anything else, authoring notes included, is clutter. Contents of the resource
+# directories are not policed by name; dotfiles are ignored as tooling.
+ALLOWED_FILES = ("SKILL.md",)
+ALLOWED_DIRS = ("references", "scripts", "assets")
+LAYOUT_HINT = "a skill directory holds only SKILL.md plus references/, scripts/, and assets/"
 
 
 def skill_dirs(root: pathlib.Path) -> list[pathlib.Path]:
@@ -63,9 +62,14 @@ def check_skill(directory: pathlib.Path) -> tuple[list[str], str | None, int, in
     if not skill_md.exists():
         return ([f"no SKILL.md in {directory.name}/"], None, 0, 0)
 
-    for banned in BANNED_FILES:
-        if (directory / banned).exists():
-            errors.append(f"remove {banned}; skill directories hold agent resources only")
+    for entry in sorted(directory.iterdir()):
+        if entry.name.startswith("."):
+            continue
+        if entry.is_dir():
+            if entry.name not in ALLOWED_DIRS:
+                errors.append(f"unexpected directory {entry.name}/; {LAYOUT_HINT}")
+        elif entry.name not in ALLOWED_FILES:
+            errors.append(f"unexpected file {entry.name}; {LAYOUT_HINT}")
 
     text = skill_md.read_text(encoding="utf-8")
     line_count = len(text.splitlines())
