@@ -28,9 +28,25 @@ semantics here.
 - **At the repository snapshot used to author this skill:** the Rust workspace is
   `0.9.4`; the Python package metadata is `0.2.1`. Treat these as checkout facts,
   not automatically as the latest published release.
+- **The documentation site lags the code.** firnflow.io still advertises 0.5.0
+  and 0.6.0 while the current release is 0.9.4. Read the repository rather than
+  the website, or you will miss `/import`, `/operations`, `GET /ns/{ns}`, the
+  object cache, idempotent upsert, query filters, and local filesystem storage.
 - Firn stores each namespace below a configured `s3://` or `gs://` root. Supported
   deployments include AWS S3, MinIO, Cloudflare R2, Tigris, DigitalOcean Spaces,
   native GCS, and local filesystem storage for embedded use.
+- **Multi-writer safety depends on object-store compare-and-swap, and not every
+  S3-compatible store qualifies.** Backblaze B2 fails: its S3 gateway returns
+  HTTP 501 on `If-None-Match: *`. R2, Tigris, and DigitalOcean Spaces need
+  path-style addressing. Before 0.9.1, region resolution ignored `AWS_REGION`
+  and defaulted to `us-east-1`.
+- **Without an IVF_PQ index, every vector query is a brute-force scan.** At 100k
+  rows of 1536 dimensions against S3 that is roughly 25 seconds p50, against
+  roughly 979 ms cold and 72 microseconds warm once indexed. Index building is
+  manual and post-hoc.
+- Firn is a single-node service. The cache is in-process, there is no horizontal
+  scaling, and cross-namespace or federated queries return 400. There are no
+  official server SDKs and no CLI, so the server is HTTP only.
 - The service cache path is result cache in RAM/NVMe, then Lance/object storage;
   the optional object cache is a separate local byte-range cache below Lance and
   is disabled by default. Object storage remains the source of truth.
@@ -80,8 +96,9 @@ Establish before recommending code or changing a deployment:
 - Build the BM25 index before text-only or hybrid queries when the namespace has
   meaningful text. Vector-only search does not require the FTS index.
 - Use multivectors for late-interaction encoders such as ColBERT, ColPali, or
-  ColQwen2. Expect materially larger storage and index-build cost; the vector
-  shape is fixed per namespace and the multivector index uses cosine distance.
+  ColQwen2. Expect roughly 250x the per-row storage, around 2 KB for a single
+  CLIP vector against around 500 KB for ColPali. The vector shape is fixed per
+  namespace, and multivector search is cosine-only while single-vector uses L2.
 - Treat the exact result cache as an exact-repeat optimization: the query,
   namespace generation, and relevant options must match. Writes, deletes,
   compaction, and index commits make old-generation results unreachable.
@@ -111,6 +128,16 @@ Establish before recommending code or changing a deployment:
   surface a failed operation's error before declaring the load or index usable.
 - Do not use `/import` for retries or updates unless duplicate rows are intended.
   Use `/upsert` for idempotent latest-write-wins behavior.
+- **On 0.9.3 and earlier, a `now()`-style predicate in a query filter serves
+  stale results.** Filters were cached by predicate text, so `_ingested_at <
+  now()` stays byte-identical while the cutoff it describes moves, replaying the
+  first result set until the next write. Fixed in 0.9.4. On any version, passing
+  a client-computed literal microsecond bound is both correct and cacheable.
+- **`/upsert` was an unconditional append before 0.9.0.** Namespaces first
+  written by an older version can hold duplicate `id`s, and merge-insert into a
+  target containing duplicates is undefined behavior in Lance. Upgrading does
+  not retroactively dedupe; check for duplicate ids before trusting upsert
+  semantics on an old namespace, and re-ingest if any exist.
 - Do not enable semantic-cache reuse silently for accuracy-sensitive retrieval.
   Report approximate-hit behavior and monitor hit, miss, and rejection metrics.
 - Keep API keys, AWS secrets, GCS service-account JSON, and signed storage URLs
@@ -125,7 +152,9 @@ Establish before recommending code or changing a deployment:
   `/compact`, poll `GET /operations/{id}` until `succeeded` or `failed`.
 - Test vector-only, text-only, and hybrid queries separately. For multivector
   namespaces, test the `vectors` wire shape and verify that a single-vector
-  payload is rejected rather than coerced.
+  payload is rejected rather than coerced. A text or hybrid query against a
+  namespace that has rows but no FTS index currently returns 500, so build the
+  FTS index before concluding the query itself is malformed.
 - Confirm cache claims with repeated and novel queries plus Prometheus metrics;
   compare backend request counts and latency. A warm exact hit is not evidence
   that a new query is fast.
