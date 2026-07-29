@@ -1,10 +1,8 @@
 # Data Engineering Skills for Claude
 
 Expert knowledge skills for Claude Code and Claude.ai covering modern data
-engineering technologies — table formats, stream processing, streaming storage,
+engineering technologies: table formats, stream processing, streaming storage,
 ML-native formats, and local orchestration.
-
-Last reviewed and refreshed: July 2026.
 
 Each skill follows the
 [Anthropic Agent Skills](https://claude.com/blog/skills) standard:
@@ -27,10 +25,10 @@ demand when the trigger conditions match.
 
 Skills use the Agent Skills progressive disclosure model:
 
-1. **YAML frontmatter** (always loaded) — `name` and `description` tell Claude
+1. **YAML frontmatter** (always loaded). `name` and `description` tell Claude
    when the skill is relevant.
-2. **`SKILL.md` body** (loaded on trigger) — core instructions and guidance.
-3. **Bundled files** (optional, loaded on demand) — deeper references, scripts,
+2. **`SKILL.md` body** (loaded on trigger). Core instructions and guidance.
+3. **Bundled files** (optional, loaded on demand). Deeper references, scripts,
    or templates referenced from `SKILL.md`.
 
 The current skills intentionally keep only concise `SKILL.md` files. Add
