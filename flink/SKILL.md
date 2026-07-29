@@ -17,12 +17,13 @@ maintenance operations.
 
 ## Current Facts
 
-- **Current Flink line:** 2.2.x. Downloads include Apache Flink 2.2.1, while the site still labels 2.2.0 as the latest stable line.
-- **Maintained 2.x patch lines:** 2.2.1, 2.1.2, 2.0.2.
-- **1.x maintenance line:** 1.20.4. Use this as the 1.x migration baseline unless the project is pinned elsewhere.
-- **Kubernetes Operator:** 1.15.0, compatible with Flink 2.2.x, 2.1.x, 2.0.x, 1.20.x, and 1.19.x.
-- **Flink CDC:** 3.6.0, with artifacts for Flink 1.20.x and 2.2.x.
-- **Java:** Flink 2.x requires Java 11+; Java 17 is the practical default for new deployments.
+- **Current Flink line:** 2.3.x. Flink 2.3.0 was released June 25, 2026 and is the latest stable release.
+- **Maintained 2.x patch lines:** 2.3.0, 2.2.1, and 2.1.3. The policy is the current and previous minor line, so 2.0.x has dropped out of the main downloads section.
+- **1.x maintenance line:** 1.20.5, released June 3, 2026, still labelled LTS. Use this as the 1.x migration baseline unless the project is pinned elsewhere.
+- **Kubernetes Operator:** 1.15.0, released May 26, 2026, supporting Flink 2.2.x, 2.1.x, 2.0.x, 1.20.x, and 1.19.x. It does not yet support 2.3.x.
+- **Flink CDC:** 3.6.0, with artifacts for Flink 1.20.x and 2.2.x only. There is no Flink 2.3 CDC artifact yet.
+- **Tooling constrains version choice, not just recency.** 2.3.0 is the newest engine, but the Kubernetes Operator and Flink CDC both top out at 2.2.x. Choose 2.2.x when the deployment needs either of them, and 2.3.x only when it needs neither.
+- **Java:** Flink 2.x requires Java 11+. Java 17 is the practical default for new deployments; Java 21 support is experimental.
 
 ## Critical 2.x Notes
 
@@ -51,7 +52,9 @@ Establish before recommending or changing anything:
 
 ## Decision Rules
 
-- Prefer Flink 2.2.x with current connector artifacts for greenfield work.
+- For greenfield work, prefer 2.2.x when the Kubernetes Operator or Flink CDC
+  is in scope, and 2.3.x only when neither is. Newest is not automatically
+  correct here; check connector and operator support before choosing.
 - Enable checkpointing and set explicit checkpoint storage. The default is not
   durable across cluster restarts.
 - Use savepoints, not checkpoints, for planned upgrades and topology changes.

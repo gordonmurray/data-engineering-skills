@@ -1,15 +1,15 @@
 ---
 name: docker-compose
-description: Write, review, and modernize Docker Compose files against the current Compose Specification and the docker compose V2 CLI. Use for authoring compose.yaml or docker-compose.yml, service dependency and healthcheck ordering, profiles, networks, volumes, secrets and configs, build contexts, migrating off V1 and the obsolete version key, or containers that fail to start, restart-loop, report unhealthy, or lose data between runs.
+description: Write, review, and modernize Docker Compose files against the current Compose Specification and the docker compose CLI. Use for authoring compose.yaml or docker-compose.yml, service dependency and healthcheck ordering, profiles, networks, volumes, secrets and configs, build contexts, migrating off V1 and the obsolete version key, or containers that fail to start, restart-loop, report unhealthy, or lose data between runs.
 license: MIT
 ---
 
-# Docker Compose V2 Expert
+# Docker Compose Expert
 
 ## Scope
 
 Writing, reviewing, and modernizing Compose files using the current Compose
-Specification and the `docker compose` V2 CLI, plus local multi-container
+Specification and the `docker compose` CLI, plus local multi-container
 workflows.
 
 Not a Kubernetes or Swarm skill. When a user needs production orchestration,
@@ -17,12 +17,15 @@ say so rather than stretching Compose to fit.
 
 ## Current Facts
 
+- **Supported CLI lines are Compose v2 and Compose v5**, both defined by the Compose Specification. Current release is v5.3.1, July 7, 2026. Docker skipped 3.x and 4.x deliberately, to avoid confusion with the obsolete v1 file-format versions 2.x and 3.x.
 - The top-level `version` property is obsolete. Compose keeps it only for backward compatibility and warns when it is used.
 - Compose validates against the most recent schema regardless of `version`.
-- Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment.
-- Default file names are `compose.yaml` and `compose.yml`; `docker-compose.yml` remains widely supported.
-- Root-level keys commonly include `services`, `networks`, `volumes`, `configs`, and `secrets`.
-- Current example image majors as of June 2026: PostgreSQL 18 and Redis 8. Pin exact patch/minor versions for production.
+- Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment. V1 reached end of life in June 2023.
+- Default file names are `compose.yaml` (preferred) and `compose.yml`; `docker-compose.yaml` and `docker-compose.yml` remain supported. Compose prefers `compose.yaml` when both exist.
+- Top-level keys are `version`, `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`.
+- **Recent additions:** service-level `pre_start` for native init containers, added in Compose v5.3.0 (July 2026); `restart: on-failure:<max-retries>`; `build.no_cache_filter`; and `docker compose start --wait`.
+- Compose v5.0.0 removed the internal BuildKit builder and delegates builds to Docker Bake, the same path as `docker build`.
+- Current example image majors as of July 2026: PostgreSQL 18 (18.4) and Redis 8 (8.8.1). Pin exact patch/minor versions for production.
 
 ## Inspect First
 
@@ -48,6 +51,12 @@ Establish before recommending or changing anything:
   the container to start, not for the service to be ready.
 - Bind sensitive ports to `127.0.0.1` unless external access is required.
 - Keep internal databases on a backend network with no host port published.
+- Use service-level `pre_start` for migrations, permission fixes, and other
+  init work, rather than the older pattern of a one-off service plus
+  `depends_on`. Each step runs in an ephemeral container before the service
+  starts, in declared order, and a non-zero exit fails the service and its
+  dependents. This differs from `post_start` and `pre_stop`, which run inside
+  the running service container.
 - Use `profiles` for optional services such as observability, admin tools, or
   one-off jobs.
 - Use `postgres:18-alpine` and `redis:8-alpine` for current examples unless
@@ -92,5 +101,5 @@ Establish before recommending or changing anything:
 
 ## Update Checklist
 
-- Recheck Docker Compose docs for newly added keys such as `develop`, `interface_name`, or pull policy support before recommending them.
+- Recheck Docker Compose docs for newly added keys before recommending them, for example `develop`, `pre_start`, or the service-level `networks.<name>.interface_name`.
 - Recheck upstream image tags before refreshing examples.

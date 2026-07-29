@@ -19,7 +19,9 @@ covers the Iggy-specific settings inside it.
 - **Current server release:** 0.8.0-incubating, released April 22, 2026.
 - **Previous release:** 0.7.0-incubating, released February 24, 2026.
 - **Status:** Apache Incubating since February 4, 2025. Incubating releases are not yet official ASF products.
-- **Images:** `apache/iggy`, `apache/iggy-web-ui`, `apache/iggy-mcp`, `apache/iggy-connect`.
+- **Images and their current tags:** `apache/iggy` 0.8.0, `apache/iggy-web-ui` 0.3.0, `apache/iggy-mcp` 0.4.0, `apache/iggy-connect` 0.4.0. Component versions do not track the server version.
+- **SDK versions track separately from the server.** Rust `iggy` crate 0.10.0, `iggy-cli` 0.13.0, PyPI `apache-iggy` 0.8.0 requiring Python 3.10+. Do not assume a client version matches the server version.
+- **Prereleases exist but are not ASF releases:** the `edge` image tag, `-edge` crate versions, and `.dev` PyPI builds. Do not use them in production.
 - **Ports:** HTTP 3000, QUIC UDP 8080, TCP 8090, WebSocket 8092.
 - **0.8 highlights:** complete wire protocol rewrite, persistent WAL journal, shard/VSR clustering groundwork, `iggy-server-ng`, A2A protocol support, user header encryption breaking change, Java async pooling, Go TCP/TLS, revived C++ SDK, connector hot reload, Web UI 0.3.0, and security hardening.
 

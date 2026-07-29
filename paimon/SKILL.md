@@ -17,12 +17,14 @@ mode, not Iceberg itself.
 
 ## Current Facts
 
-- **Current stable Paimon:** 1.4.1. A 1.4.2 release candidate exists; do not recommend it as stable unless the user explicitly wants RC testing.
-- **PyPaimon:** 1.4.1 on PyPI, pure Python package.
+- **Current stable Paimon:** 1.4.2, released June 23, 2026. There is no 1.5 release candidate; master is 1.5-SNAPSHOT.
+- **apache/paimon publishes no GitHub Releases.** Git tags and the ASF dist area are the authoritative signal for what has actually shipped.
+- **PyPaimon:** 1.4.2 on PyPI, sdist only, a pure Python SDK with no JDK dependency. `pypaimon-rust` 0.3.0 is a separate optional Rust accelerator shipping binary wheels; it is not a dependency of pypaimon. The old `apache/paimon-python` repository is abandoned and PyPaimon now lives inside `apache/paimon`.
 - **Flink CDC:** 3.6.0 is the current CDC line; older 3.5 examples remain useful but should not be described as latest.
-- **Recommended Flink:** Flink 1.20.x or 2.2.x for new work when connector compatibility allows.
-- **Recommended Spark:** verify against the Paimon connector matrix for the selected Paimon version; do not hard-code Spark 3.4.3 for new projects without checking.
-- **Recent focus areas:** PyPaimon, data evolution, Iceberg compatibility, deletion vectors, REST Catalog authorization interfaces, lookup join performance, multimodal/blob storage, and Paimon/Lance integration work.
+- **The Flink ceiling is 2.2.x, and the reason matters.** Flink 2.3.0 is now the latest stable engine, but `paimon-flink-2.3` is not published to Maven Central and Flink CDC 3.6 requires 1.20.x or 2.2.x. Use 1.20.x or 2.2.x, and expect users who checked flink.apache.org to ask why 2.3 is excluded.
+- **Spark connectors published for 1.4.2:** Spark 4.0 as `paimon-spark-4.0_2.13`, and Spark 3.5, 3.4, 3.3, and 3.2 as `_2.12`. Spark 4.1 exists only on master and is not published, so do not recommend it.
+- **Current roadmap is "Paimon 2.0 Planning":** unified storage for structured, multimodal, and vector data; search across data, vectors, and full text; and PyPaimon integration with Ray and PyTorch. Named workstreams include data evolution, blob store, vector store, and a global index framework. Lookup join performance remains active.
+- **New Rust sub-projects with independent releases:** `paimon-vector-index` (IVF-PQ for lake vector search), `paimon-full-text`, `paimon-mosaic` (columnar-bucket hybrid format for wide tables), plus `paimon-rust` and `paimon-cpp`.
 
 ## Inspect First
 
@@ -77,5 +79,5 @@ Establish before recommending or changing anything:
 
 ## Update Checklist
 
-- Recheck Apache Paimon tags/downloads and PyPI `pypaimon` before changing versions.
+- Recheck Apache Paimon git tags and the ASF dist area, not GitHub Releases, which the project leaves empty. Recheck PyPI `pypaimon` separately.
 - Recheck Flink CDC compatibility for the selected Flink and Paimon releases.

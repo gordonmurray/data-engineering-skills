@@ -17,13 +17,13 @@ Iceberg table those systems read or write, not to the engine itself.
 
 ## Current Facts
 
-- **Current Apache Iceberg project release:** 1.11.0, published May 20, 2026.
+- **Current Apache Iceberg project release:** 1.11.0, released May 19, 2026.
 - **Format versions:** v1, v2, and v3 are complete and adopted by the Iceberg community.
 - **Format v2:** production baseline for row-level deletes and broad engine compatibility.
 - **Format v3:** adds nanosecond timestamp types, `variant`, geometry/geography, unknown type, default values, multi-argument transforms, row lineage, binary deletion vectors, and table encryption keys.
-- **Format v4:** under active development and not formally adopted.
-- **Polaris:** Apache Polaris graduated to a Top-Level Project in February/March 2026 and is a vendor-neutral Iceberg REST catalog implementation.
-- **Engine support:** v3 support broadened in 2025-2026, including AWS and Snowflake GA support. Do not describe Trino/Athena/Snowflake support as universally pending; check the target engine/version.
+- **Format v4:** under active development and not formally adopted. The spec now names it "Metadata Structure and Representation", headlined by relative locations in metadata.
+- **Polaris:** Apache Polaris graduated to a Top-Level Project in February 2026 and is a vendor-neutral Iceberg REST catalog implementation. Current release 1.6.0, July 9, 2026.
+- **Engine v3 support is uneven. Check the specific engine and the specific feature.** Snowflake reached v3 GA on May 7, 2026, though external-engine writes through the Horizon REST Catalog are not yet supported. AWS has been GA since November 2025 but only for deletion vectors and row lineage, only on Spark-based services such as EMR 7.12+, Glue, and S3 Tables. Amazon Athena does not support v3. Do not describe v3 support as universally pending, and do not describe it as universal either.
 
 ## Inspect First
 
