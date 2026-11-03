@@ -16,14 +16,17 @@ formats use the `iceberg` or `paimon` skills.
 
 ## Current Facts
 
-- **Lance format project:** v9.0.0, released July 24, 2026. `pylance` 9.0.0 on PyPI. v10.0.0 is in beta; do not present beta as the stable recommendation.
-- **LanceDB Python:** 0.36.0, released July 29, 2026. `python-v0.35.0` never shipped a stable build, so PyPI goes 0.34.0 straight to 0.36.0.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Lance SDK:** v14.0.2 and `pylance` 14.0.2, released October 29, 2026. v15 betas and v14.0.3 release candidates are not stable releases. SDK versions are distinct from the on-disk format version.
+- **LanceDB Python:** 0.41.0, released October 29, 2026; this release uses Lance 14.0.2.
 - **The Lance repository moved** from `lancedb/lance` to `lance-format/lance`, with homepage `lance.org`. The old URL redirects.
-- **Release tags collide across languages.** LanceDB Python releases are tagged `python-vX.Y.Z`, while bare `vX.Y.Z` tags are the Node and Rust clients. A bare `v0.33.0` tag published July 28, 2026 is Node/Rust, not Python. Never read a bare tag as a Python version.
+- **Verify releases per package.** Historical LanceDB tags differ across languages; current `v0.41.0` notes also cover Python. Check PyPI for Python availability instead of inferring it from a tag prefix.
 - **Python packages:** install `pylance` for the Lance format and `lancedb` for the embedded/vector database API. The bare `lance` name on PyPI is an unrelated package by a different author. `lancedb-compat` is a same-API wheel for pre-Haswell x86_64 hosts without AVX2.
 - **Python support:** both packages declare `requires-python >=3.10`. The `cp39-abi3` wheel tag is an ABI compatibility marker, not an install gate, so 3.9 does not work despite what the filename suggests.
 - **Vector index types:** `IVF_FLAT`, `IVF_SQ`, `IVF_PQ`, `IVF_HNSW_SQ`, `IVF_HNSW_PQ`, `IVF_HNSW_FLAT`, and `IVF_RQ`.
-- **Recent breaking changes:** v8.0.0 moved the bitmap index to a segment-based architecture and moved distributed BTree builds into the segmented index framework. v9.0.0 made FTS v2 the default index format and renamed `FMIndexIndexDetails` to `FMIndexDetails`.
+- **LanceDB 0.41 migration:** table metadata no longer implicitly authorizes remote-code embedding models or custom endpoints. Explicitly approve trusted models/revisions and endpoints through the embedding registry; do not bypass `UntrustedEmbeddingConfigError` indiscriminately. Local computed columns and materialized views require an experimental build feature absent from published Python and Node packages.
 
 ## Inspect First
 
@@ -61,9 +64,14 @@ Establish before recommending or changing anything:
 
 ## Safety
 
-- Compaction and version cleanup permanently drop older dataset versions and
-  the ability to time travel to them. Confirm nothing pins an old version
-  first.
+- Lance `dataset.optimize.compact_files()` rewrites fragments and creates a
+  new version; it preserves old versions and the files they reference.
+- `cleanup_old_versions()` removes eligible historical versions and files,
+  ending time travel to those versions. Check retention and active readers
+  before cleanup. Do not enable `delete_unverified=True` while writers run.
+- LanceDB `table.optimize()` can combine compaction, index maintenance, and
+  version cleanup. Inspect that API's cleanup options for the installed version
+  before running it; it is not equivalent to Lance's compaction-only call.
 - Overwrite mode replaces the table rather than appending. Confirm the intended
   write mode against an existing table.
 - Rebuilding an index on a large dataset is expensive in time and memory. State
@@ -78,11 +86,21 @@ Establish before recommending or changing anything:
 - Measure recall against a brute-force baseline on a sample before accepting an
   ANN configuration. Report the measured number.
 - After compaction, compare fragment count and query latency before and after.
+- Check retained versions separately from fragment counts. Compaction alone
+  does not establish that historical storage was reclaimed.
 - Report row count, index type and parameters, and measured latency and recall,
   rather than claiming an index should help.
 
 ## Update Checklist
 
 - Confirm latest `lance-format/lance` release before changing SDK guidance.
-- Confirm latest stable `lancedb` release on PyPI before changing Python
-  guidance, and read `python-v*` tags rather than bare `v*` tags.
+- Confirm stable Python releases on PyPI and match their release notes; do not
+  rely on tag naming conventions to identify the language package.
+
+## Sources
+
+- [Lance 14.0.2 release](https://github.com/lance-format/lance/releases/tag/v14.0.2)
+- [LanceDB 0.41.0 release and migration notes](https://github.com/lancedb/lancedb/releases/tag/v0.41.0)
+- [pylance package](https://pypi.org/project/pylance/) and [lancedb package](https://pypi.org/project/lancedb/)
+- [Lance compaction and version cleanup](https://lance.org/guide/read_and_write/)
+- [LanceDB Python maintenance API](https://lancedb.github.io/lancedb/python/python/)

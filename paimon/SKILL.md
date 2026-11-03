@@ -1,6 +1,6 @@
 ---
 name: paimon
-description: Design, ingest into, tune, and operate Apache Paimon tables for streaming lakehouses. Use for Paimon primary-key or append-only table design, bucket sizing, changelog producer choice, Flink CDC ingestion, compaction backlog, lookup join performance, PyPaimon, Spark reads, Iceberg compatibility, or streaming writes that produce too many small files.
+description: Design, ingest into, tune, and operate Apache Paimon tables for streaming lakehouses and multimodal data. Use for Paimon primary-key or append-only table design, bucket sizing, changelog producer choice, Flink CDC ingestion, compaction backlog, lookup joins, PyPaimon, blob and vector storage, Spark reads, or Iceberg compatibility.
 license: MIT
 ---
 
@@ -9,7 +9,8 @@ license: MIT
 ## Scope
 
 Paimon table design, Flink-native streaming ingestion, changelog semantics,
-compaction, lookup joins, Spark reads, and Iceberg compatibility.
+compaction, lookup joins, Spark reads, Iceberg compatibility, and Paimon 2.x
+multimodal tables and Python integrations.
 
 For Flink job architecture and operations use the `flink` skill. For Iceberg
 table internals use `iceberg`; this skill covers Paimon's Iceberg compatibility
@@ -17,14 +18,15 @@ mode, not Iceberg itself.
 
 ## Current Facts
 
-- **Current stable Paimon:** 1.4.2, released June 23, 2026. There is no 1.5 release candidate; master is 1.5-SNAPSHOT.
-- **apache/paimon publishes no GitHub Releases.** Git tags and the ASF dist area are the authoritative signal for what has actually shipped.
-- **PyPaimon:** 1.4.2 on PyPI, sdist only, a pure Python SDK with no JDK dependency. `pypaimon-rust` 0.3.0 is a separate optional Rust accelerator shipping binary wheels; it is not a dependency of pypaimon. The old `apache/paimon-python` repository is abandoned and PyPaimon now lives inside `apache/paimon`.
-- **Flink CDC:** 3.6.0 is the current CDC line; older 3.5 examples remain useful but should not be described as latest.
-- **The Flink ceiling is 2.2.x, and the reason matters.** Flink 2.3.0 is now the latest stable engine, but `paimon-flink-2.3` is not published to Maven Central and Flink CDC 3.6 requires 1.20.x or 2.2.x. Use 1.20.x or 2.2.x, and expect users who checked flink.apache.org to ask why 2.3 is excluded.
-- **Spark connectors published for 1.4.2:** Spark 4.0 as `paimon-spark-4.0_2.13`, and Spark 3.5, 3.4, 3.3, and 3.2 as `_2.12`. Spark 4.1 exists only on master and is not published, so do not recommend it.
-- **Current roadmap is "Paimon 2.0 Planning":** unified storage for structured, multimodal, and vector data; search across data, vectors, and full text; and PyPaimon integration with Ray and PyTorch. Named workstreams include data evolution, blob store, vector store, and a global index framework. Lookup join performance remains active.
-- **New Rust sub-projects with independent releases:** `paimon-vector-index` (IVF-PQ for lake vector search), `paimon-full-text`, `paimon-mosaic` (columnar-bucket hybrid format for wide tables), plus `paimon-rust` and `paimon-cpp`.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Current stable Paimon and PyPaimon:** 2.1.0, published October 12, 2026. Paimon 2.0 shipped in August; it is no longer a roadmap-only release.
+- **Release authority:** use signed ASF distributions and matching Maven/PyPI artifacts. Paimon and PyPaimon share a release version and vote; do not infer availability from a development branch or GitHub Releases alone.
+- **Python:** install `pypaimon`; its source lives in `apache/paimon`. Verify optional native accelerators and their versions separately from the Python SDK.
+- **Flink integration:** 2.1.0 engine artifacts cover Flink 1.16–1.20 and 2.0–2.2. `paimon-flink-2.3:2.1.0` is not published. CDC 3.7.0 distributes for 1.20.x and 2.2.x, so choose their intersection for CDC pipelines.
+- **Spark integration:** 2.1.0 publishes Spark 4.1 and 4.0 artifacts with Scala 2.13, and Spark 3.2–3.5 artifacts with Scala 2.12. Spark 4.1 is no longer master-only.
+- **2.x scope:** the released documentation covers data evolution, blob and vector storage, global indexes, full-text search, and PyPaimon integration with Ray and PyTorch. Check the specific table mode and engine before applying primary-key streaming advice to a multimodal table.
 
 ## Inspect First
 
@@ -39,6 +41,9 @@ Establish before recommending or changing anything:
 4. For performance work, read the `$files`, `$snapshots`, `$manifests`, and
    `$options` system tables. Get file count per bucket, average file size,
    compaction backlog, and snapshot expiry settings rather than assuming.
+5. For a 1.x to 2.x upgrade, inspect the target release's migration notes and
+   each reader/writer dependency. For multimodal work, identify blob storage,
+   index type, and the Python/native components actually installed.
 
 ## Decision Rules
 
@@ -79,5 +84,15 @@ Establish before recommending or changing anything:
 
 ## Update Checklist
 
-- Recheck Apache Paimon git tags and the ASF dist area, not GitHub Releases, which the project leaves empty. Recheck PyPI `pypaimon` separately.
+- Recheck Apache Paimon tags and signed ASF distributions, then confirm Maven
+  artifacts and PyPI `pypaimon` publication for the selected release.
 - Recheck Flink CDC compatibility for the selected Flink and Paimon releases.
+
+## Sources
+
+- [Signed Paimon and PyPaimon releases](https://downloads.apache.org/paimon/)
+- [Paimon 2.1 engine artifacts](https://paimon.apache.org/docs/2.1/project/download/)
+- [Paimon 2.1 documentation](https://paimon.apache.org/docs/2.1/)
+- [Paimon/PyPaimon release model](https://paimon.apache.org/docs/2.1/project/releases/)
+- [PyPaimon package](https://pypi.org/project/pypaimon/)
+- [Flink CDC distributions and compatibility](https://flink.apache.org/downloads/)

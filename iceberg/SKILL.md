@@ -17,13 +17,17 @@ Iceberg table those systems read or write, not to the engine itself.
 
 ## Current Facts
 
-- **Current Apache Iceberg project release:** 1.11.0, released May 19, 2026.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Current Apache Iceberg project release:** 1.12.0, released September 29, 2026. Runtime artifacts include Spark 3.5, 4.0, and 4.1, and Flink 1.20, 2.1, 2.2, and 2.3; match the engine and Scala binary version.
 - **Format versions:** v1, v2, and v3 are complete and adopted by the Iceberg community.
 - **Format v2:** production baseline for row-level deletes and broad engine compatibility.
 - **Format v3:** adds nanosecond timestamp types, `variant`, geometry/geography, unknown type, default values, multi-argument transforms, row lineage, binary deletion vectors, and table encryption keys.
 - **Format v4:** under active development and not formally adopted. The spec now names it "Metadata Structure and Representation", headlined by relative locations in metadata.
-- **Polaris:** Apache Polaris graduated to a Top-Level Project in February 2026 and is a vendor-neutral Iceberg REST catalog implementation. Current release 1.6.0, July 9, 2026.
-- **Engine v3 support is uneven. Check the specific engine and the specific feature.** Snowflake reached v3 GA on May 7, 2026, though external-engine writes through the Horizon REST Catalog are not yet supported. AWS has been GA since November 2025 but only for deletion vectors and row lineage, only on Spark-based services such as EMR 7.12+, Glue, and S3 Tables. Amazon Athena does not support v3. Do not describe v3 support as universally pending, and do not describe it as universal either.
+- **Polaris:** the vendor-neutral Iceberg REST catalog's current release is 1.8.0, published September 28, 2026. Keep catalog service versions separate from table format versions.
+- **Engine v3 support is feature-specific.** Snowflake supports external-engine reads and writes to Snowflake-managed v3 tables through Horizon REST Catalog, including customer-managed and Snowflake-managed storage. The previous blanket prohibition on external v3 writes is obsolete. Check the supported operations for the table's catalog and storage configuration.
+- **AWS:** S3 Tables documents v3 support with compatible engines, but Athena still cannot read v3 tables. Verify each reader before upgrading a shared table.
 
 ## Inspect First
 
@@ -85,3 +89,11 @@ Establish before recommending or changing anything:
 - Recheck Apache Iceberg releases before changing library/runtime versions.
 - Recheck the spec page before changing format-version wording.
 - Recheck engine-specific v3 support before making upgrade recommendations.
+
+## Sources
+
+- [Iceberg releases and engine artifacts](https://iceberg.apache.org/releases/)
+- [Iceberg format specification](https://iceberg.apache.org/spec/)
+- [Polaris 1.8.0 release](https://github.com/apache/polaris/releases/tag/apache-polaris-1.8.0)
+- [Snowflake Horizon external-engine access](https://docs.snowflake.com/en/user-guide/tables-iceberg-access-using-external-query-engine-snowflake-horizon)
+- [S3 Tables Iceberg v3 support and limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/working-with-apache-iceberg-v3.html)
