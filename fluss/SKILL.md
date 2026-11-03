@@ -1,6 +1,6 @@
 ---
 name: fluss
-description: Design, deploy, and operate Apache Fluss streaming storage for sub-second real-time analytics. Use for Fluss log or primary-key table design, bucket sizing, tiering to Paimon, Iceberg, or Lance, Flink integration and Delta Join, $changelog and $binlog virtual tables, Spark access to streams, client SDK choice, or deciding between hot streaming storage and a lakehouse table.
+description: Design, deploy, and operate Apache Fluss streaming storage. Use for Fluss log or primary-key tables, retention and bucket sizing, tiering to Paimon, Iceberg, or Hudi, Flink integration and Delta Join, $changelog and $binlog virtual tables, Spark access, REST Gateway, native client SDKs, or hot storage for real-time analytics and AI context.
 license: MIT
 ---
 
@@ -16,12 +16,14 @@ For the cold lakehouse side of a tiered architecture use the `paimon` or
 
 ## Current Facts
 
-- **Current stable:** Apache Fluss 0.9.1, published May 4, 2026.
-- **Status:** graduated to a Top-Level Project at the ASF board meeting of July 15, 2026, with Jark Wu as inaugural chair. Release artifacts and Git tags still carry the `-incubating` suffix because 0.9.1 was cut before graduation, and the website plus incubator pages still lag. Graduation does not imply API stability; this remains pre-1.0.
-- **Important 0.9 line features:** Spark integration, complex nested types, zero-copy schema evolution, aggregation merge engine, auto-increment dictionary tables, `$changelog` and `$binlog` virtual tables, compacted log format, dynamic sink shuffle, KV snapshot leases, cluster rebalance, Azure Blob/ADLS Gen2 support, and Java Client POJO support.
-- **Clients:** Fluss Rust, Python, and C++ client 0.1.0 has been announced; do not describe Python SDK as only future roadmap.
-- **Flink CDC:** use current Flink CDC 3.6.0 guidance unless working in a pinned 3.5 environment.
-- **Docker images:** `apache/fluss:0.9.1-incubating`, and `apache/fluss-quickstart-flink:1.20-0.9.1-incubating` for the Flink quickstart. The `-incubating` suffix is part of the tag; a bare `0.9.1` tag does not exist and no `latest` tag is published, so pinning is mandatory. The old `fluss/fluss` Docker Hub repository is abandoned and has nothing newer than 0.7.0 from June 2025.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Current stable:** Apache Fluss 1.0.0, announced September 21, 2026. Fluss is a Top-Level Project and is no longer pre-1.0. The older 0.9.1 release retains its incubating suffix.
+- **1.0 capabilities:** REST Gateway, coordinator high availability, Hudi tiering, primary-key row TTL, and expanded Flink/Spark integration. Gateway MCP support remains planned; HTTP access does not imply an MCP server exists.
+- **Clients:** Rust, Python, and C++ clients now ship from the main repository alongside Java. Check feature support per language instead of carrying forward the old 0.1.0 maturity assumption.
+- **Flink:** 1.0 adds Flink 2.3 support. CDC 3.7 still targets Flink 1.20 and 2.2; select compatible versions across the whole pipeline.
+- **Docker images:** `apache/fluss:1.0.0` and `apache/fluss-quickstart-flink:1.20-1.0.0` are the documented quickstart tags. Do not append `-incubating` to 1.0 images.
 
 ## Inspect First
 
@@ -49,20 +51,18 @@ Establish before recommending or changing anything:
   reproducibility rather than rebuilding that history downstream.
 - Use the aggregation merge engine when moving aggregate state into storage
   measurably simplifies Flink state.
-- Pin exact versions, including the `-incubating` tag suffix. This is pre-1.0
-  and minor releases can break compatibility.
+- Pin exact server, client, and connector versions. Keep incubating suffixes
+  only for old releases whose published artifacts use them.
+- On eligible partitioned 1.0 tables, bucket rescaling changes future
+  partitions, not existing ones. Check restrictions before promising a rebalance.
 
 ## Safety
 
-- Fluss is now a Top-Level Project but is still pre-1.0. Confirm the user
-  accepts breaking changes between minor versions before recommending it for
-  production.
-- The Rust, Python, and C++ clients are at 0.1.0. Check maturity against the
-  workload before recommending them for production; the Java client is the
-  mature path.
-- Tiering settings determine what remains in hot storage. Confirm retention
-  before enabling or changing tiering, because data aged out of Fluss is
-  available only from the lake target.
+- Check the release-specific upgrade path and client compatibility before a
+  0.9 to 1.0 rollout; graduation alone does not validate an existing deployment.
+- Distinguish local log TTL, total log TTL, primary-key row TTL, partition
+  expiry, and lake retention. Eviction from local disk can leave remote logs
+  readable; expired rows or partitions have different recovery implications.
 - Keep S3, Azure Blob, and ADLS Gen2 credentials out of table properties and
   out of anything committed to a repository.
 
@@ -75,10 +75,17 @@ Establish before recommending or changing anything:
   the project's sub-second claim.
 - After bucket or schema changes, confirm existing consumers still read
   successfully.
-- Report Fluss, Flink, and connector versions, and state plainly that Fluss is
-  pre-1.0 despite having graduated.
+- Report Fluss, Flink, connector, and client versions, including which tier
+  served the verification read.
 
 ## Update Checklist
 
 - Recheck Fluss downloads before changing stable versions.
 - Recheck client SDK maturity before recommending Python/C++/Rust client use in production.
+
+## Sources
+
+- [Fluss downloads](https://fluss.apache.org/downloads/)
+- [Fluss 1.0 release and compatibility notes](https://fluss.apache.org/blog/releases/1.0/)
+- [Published quickstart image tags](https://fluss.apache.org/docs/quickstart/flink/)
+- [Flink CDC distributions](https://flink.apache.org/downloads/)

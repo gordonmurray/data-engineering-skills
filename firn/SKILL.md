@@ -25,13 +25,20 @@ semantics here.
 
 ## Current Facts
 
-- **At the repository snapshot used to author this skill:** the Rust workspace is
-  `0.9.4`; the Python package metadata is `0.2.1`. Treat these as checkout facts,
-  not automatically as the latest published release.
-- **The documentation site lags the code.** firnflow.io still advertises 0.5.0
-  and 0.6.0 while the current release is 0.9.4. Read the repository rather than
-  the website, or you will miss `/import`, `/operations`, `GET /ns/{ns}`, the
-  object cache, idempotent upsert, query filters, and local filesystem storage.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Published releases:** server `v0.9.7` and Python `firn` 0.2.3, both
+  published September 3, 2026. They version independently. Use the tagged
+  repository and release notes when website or README version labels differ.
+- **New query controls:** `exact: true` bypasses the vector index and result
+  caches for a single-vector ground-truth query. `refine_factor` retrieves
+  extra ANN candidates and reranks them using full-precision vectors; it trades
+  extra reads for recall and cannot be combined with `exact: true`.
+- **Typed attributes:** `/attributes` declares scalar `string`, `int`, `float`,
+  or `bool` columns; writes supply values through `attributes`. Declaration is
+  additive, and redeclaring a column with a different type fails. Check the
+  release's API before treating arbitrary JSON metadata as supported.
 - Firn stores each namespace below a configured `s3://` or `gs://` root. Supported
   deployments include AWS S3, MinIO, Cloudflare R2, Tigris, DigitalOcean Spaces,
   native GCS, and local filesystem storage for embedded use.
@@ -40,10 +47,10 @@ semantics here.
   HTTP 501 on `If-None-Match: *`. R2, Tigris, and DigitalOcean Spaces need
   path-style addressing. Before 0.9.1, region resolution ignored `AWS_REGION`
   and defaulted to `us-east-1`.
-- **Without an IVF_PQ index, every vector query is a brute-force scan.** At 100k
-  rows of 1536 dimensions against S3 that is roughly 25 seconds p50, against
-  roughly 979 ms cold and 72 microseconds warm once indexed. Index building is
-  manual and post-hoc.
+- **Without an IVF_PQ index, uncached vector searches scan the data.** Index
+  building is manual and post-hoc. Benchmark novel queries separately from
+  cached repeats; published latency numbers describe a specific corpus and
+  storage setup, not a service guarantee.
 - Firn is a single-node service. The cache is in-process, there is no horizontal
   scaling, and cross-namespace or federated queries return 400. There are no
   official server SDKs and no CLI, so the server is HTTP only.
@@ -91,6 +98,10 @@ Establish before recommending code or changing a deployment:
 - Build `IVF_PQ` after the bulk of the data is loaded and compacted when cold
   object-storage search matters. It improves novel-query latency; it does not
   make a novel query an exact result-cache hit.
+- Measure single-vector ANN recall against `exact: true` on the same sample,
+  filters, and dataset state. Tune `nprobes` and `refine_factor` against the
+  latency budget; do not combine either with exact mode. Exact mode rejects
+  text, hybrid, and multivector query shapes.
 - Batch JSON upserts toward `FIRNFLOW_MAX_BODY_BYTES`. For very large first loads,
   prefer Arrow IPC `/import`, then compact and build the needed indexes.
 - Build the BM25 index before text-only or hybrid queries when the namespace has
@@ -153,8 +164,9 @@ Establish before recommending code or changing a deployment:
 - Test vector-only, text-only, and hybrid queries separately. For multivector
   namespaces, test the `vectors` wire shape and verify that a single-vector
   payload is rejected rather than coerced. A text or hybrid query against a
-  namespace that has rows but no FTS index currently returns 500, so build the
-  FTS index before concluding the query itself is malformed.
+  populated namespace without an FTS index returns 400 naming the missing
+  index. Build it before retrying; an empty namespace returning no hits does
+  not validate FTS readiness.
 - Confirm cache claims with repeated and novel queries plus Prometheus metrics;
   compare backend request counts and latency. A warm exact hit is not evidence
   that a new query is fast.
@@ -172,3 +184,11 @@ Establish before recommending code or changing a deployment:
   a deployment recipe.
 - Recheck configuration names, defaults, authentication tiers, async operation
   semantics, and metrics when the server API changes.
+
+## Sources
+
+- [Firn v0.9.7 release and refinement](https://github.com/gordonmurray/firnflow/releases/tag/v0.9.7)
+- [Firn v0.9.6 exact queries and attributes](https://github.com/gordonmurray/firnflow/releases/tag/v0.9.6)
+- [Tagged server architecture and operational reference](https://github.com/gordonmurray/firnflow/blob/v0.9.7/README.md)
+- [Published Python package](https://pypi.org/project/firn/)
+- [REST API and authentication](https://firnflow.io/api.html)

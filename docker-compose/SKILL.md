@@ -17,16 +17,20 @@ say so rather than stretching Compose to fit.
 
 ## Current Facts
 
-- **Supported CLI lines are Compose v2 and Compose v5**, both defined by the Compose Specification. Current release is v5.3.1, July 7, 2026. Docker skipped 3.x and 4.x deliberately, to avoid confusion with the obsolete v1 file-format versions 2.x and 3.x.
+Release guidance checked on **2026-11-03**. Recheck the linked sources before
+selecting versions for a new deployment; preserve existing project pins.
+
+- **Current CLI release:** Compose v5.7.0, published November 2, 2026. Existing installations may still run v2; inspect the binary before using newer features. CLI major versions are separate from obsolete Compose file-format versions.
 - The top-level `version` property is obsolete. Compose keeps it only for backward compatibility and warns when it is used.
 - Compose validates against the most recent schema regardless of `version`.
 - Use `docker compose`, not the old standalone `docker-compose` command, unless supporting a pinned legacy environment. V1 reached end of life in June 2023.
 - Default file names are `compose.yaml` (preferred) and `compose.yml`; `docker-compose.yaml` and `docker-compose.yml` remain supported. Compose prefers `compose.yaml` when both exist.
-- Top-level keys are `version`, `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`.
+- Common top-level keys include `name`, `include`, `services`, `models`, `networks`, `volumes`, `secrets`, and `configs`; validate newer keys against the installed CLI.
 - **Recent additions gated on a CLI version:** service-level `pre_start` for native init containers needs v5.3.0 (July 2026); `build.no_cache_filter` and `docker compose start --wait` need v5.0.0. None of these are available on Compose v2.
+- **Jobs:** v5.6 introduced partial support for manually triggered jobs. Do not assume scheduled-job support from the existence of the `jobs` model; check the target CLI and Engine capabilities.
 - `restart` accepts `no`, `always`, `on-failure[:max-retries]`, and `unless-stopped`, with no version gate on any of them. The `on-failure` retry limit is long-standing; its spec wording was clarified in February 2026, which is not the same as being new.
 - Compose v5.0.0 removed the internal BuildKit builder and delegates builds to Docker Bake, the same path as `docker build`.
-- Current example image majors as of July 2026: PostgreSQL 18 (18.4) and Redis 8 (8.8.1). Pin exact patch/minor versions for production.
+- `postgres:18-alpine` and `redis:8-alpine` remain available example tags. These floating tags are not production pins or permission to upgrade existing database storage.
 
 ## Inspect First
 
@@ -53,9 +57,9 @@ Establish before recommending or changing anything:
   the container to start, not for the service to be ready.
 - Bind sensitive ports to `127.0.0.1` unless external access is required.
 - Keep internal databases on a backend network with no host port published.
-- Check the CLI version before using any recently added key. Both v2 and v5 are
-  supported lines, and a v5-only key silently produces an invalid file for a v2
-  user.
+- Check the CLI version before using a recently added key. A v5-only key may
+  be rejected or ignored by older tooling; successful YAML parsing alone does
+  not prove the requested behavior is supported.
 - For migrations, permission fixes, and other init work on **Compose v5.3.0 or
   newer**, use service-level `pre_start`. Each step runs in an ephemeral
   container before the service starts, in declared order, and a non-zero exit
@@ -109,3 +113,10 @@ Establish before recommending or changing anything:
 
 - Recheck Docker Compose docs for newly added keys before recommending them, for example `develop`, `pre_start`, or the service-level `networks.<name>.interface_name`.
 - Recheck upstream image tags before refreshing examples.
+
+## Sources
+
+- [Compose v5.7.0 release](https://github.com/docker/compose/releases/tag/v5.7.0)
+- [Compose v5.6.0 job support limitations](https://github.com/docker/compose/releases/tag/v5.6.0)
+- [Compose file reference](https://docs.docker.com/reference/compose-file/)
+- [Official PostgreSQL image](https://hub.docker.com/_/postgres) and [Redis image](https://hub.docker.com/_/redis)

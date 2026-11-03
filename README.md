@@ -1,8 +1,8 @@
 # Data Engineering Skills for Claude
 
 Expert knowledge skills for Claude Code and Claude.ai covering modern data
-engineering technologies: table formats, stream processing, streaming storage,
-ML-native formats, and local orchestration.
+engineering technologies: table formats, stream processing, streaming AI agents,
+streaming storage, ML-native formats, and local orchestration.
 
 Each skill follows the
 [Anthropic Agent Skills](https://claude.com/blog/skills) standard:
@@ -17,10 +17,21 @@ demand when the trigger conditions match.
 | **Apache Paimon** | Streaming lake format | [`paimon/SKILL.md`](paimon/SKILL.md) |
 | **Apache Fluss** | Streaming storage for real-time analytics | [`fluss/SKILL.md`](fluss/SKILL.md) |
 | **Apache Flink** | Stream processing framework | [`flink/SKILL.md`](flink/SKILL.md) |
+| **Apache Flink Agents** | Streaming AI agents, durable execution, and recovery | [`flink-agents/SKILL.md`](flink-agents/SKILL.md) |
 | **Apache Iggy** | Rust-native message streaming | [`iggy/SKILL.md`](iggy/SKILL.md) |
 | **Lance** | Columnar format for ML/AI + vector search | [`lance/SKILL.md`](lance/SKILL.md) |
 | **Firn** | Object-storage-backed vector and full-text search | [`firn/SKILL.md`](firn/SKILL.md) |
 | **Docker Compose** | Container orchestration (v2 and v5) | [`docker-compose/SKILL.md`](docker-compose/SKILL.md) |
+
+Release and compatibility guidance was refreshed on **3 November 2026**.
+Each skill includes dated guidance and upstream sources. These are verified
+snapshots, not automatic dependency upgrades; check the installed versions and
+current compatibility matrix before applying them.
+
+The Flink Agents skill focuses on integration and operations. Apache also
+maintains [flink-agents-dev](https://nightlies.apache.org/flink/flink-agents-docs-release-0.4/docs/development/coding-agent-skill/)
+for application scaffolding, authoring references, and YAML schemas. Flink
+Agents 0.4.0 is still a preview release.
 
 ## How Skills Work
 
@@ -92,6 +103,9 @@ To add a new skill:
 4. Keep `SKILL.md` focused; move deep reference material to `references/` and
    executable helpers to `scripts/` within the skill folder.
 5. Update the table above.
+6. Date release-specific guidance and link authoritative sources. Check engine,
+   connector, and client compatibility independently; distinguish stable
+   releases from previews and development branches.
 
 Run the validator before opening a pull request:
 
